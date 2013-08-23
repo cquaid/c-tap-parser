@@ -1,93 +1,151 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
-#include "tap_parser.h"
+#include "../tap_parser.h"
 
 static int
 invalid(struct _tap_parser *tp, const char *msg)
 {
-	fprintf(stderr,"Error: %s\n", msg);
+	fprintf(stderr, "Error: %s\n", msg);
+	fflush(stderr);
+
 	return tap_default_invalid_callback(tp, msg);
 }
 
 static int
 unknown(struct _tap_parser *tp)
 {
+	size_t len;
+
+	len = strlen(tp->buffer);
+	/* remove the trailing newline */
+	if (tp->buffer[len - 1] == '\n')
+		tp->buffer[len - 1] = '\0';
+
 	fprintf(stderr, "Unknown: %s\n", tp->buffer);
+	fflush(stderr);
+
 	return tap_default_unknown_callback(tp);
 }
 
 static int
 version(struct _tap_parser *tp, long tap_version)
 {
-	fprintf(stderr, "Version: %ld\n", tap_version);
+	printf("Version: %ld\n", tap_version);
+	fflush(stdout);
+
 	return tap_default_version_callback(tp, tap_version);
 }
 
 static int
 comment(struct _tap_parser *tp)
 {
-	fprintf(stderr, "Comment: %s\n", tp->buffer);
+	size_t len;
+
+	len = strlen(tp->buffer);
+	/* remove the trailing newline */
+	if (tp->buffer[len - 1] == '\n')
+		tp->buffer[len - 1] = '\0';
+
+	printf("Comment: %s\n", tp->buffer);
+	fflush(stdout);
+
 	return tap_default_comment_callback(tp);
 }
 
 static int
 bailout(struct _tap_parser *tp, char *msg)
 {
-	fprintf(stderr, "Bailout: %s\n", msg);
+	printf("Bail out!");
+	if (msg)
+		printf(" %s\n", msg);
+	else
+		putchar('\n');
+
+	fflush(stdout);
+
 	return tap_default_bailout_callback(tp, msg);
 }
 
 static int
 pragma(struct _tap_parser *tp, int state, char *pragma)
 {
-	fprintf(stderr, "Pragma: %c%s\n", (state)?'+':'-', pragma);
+	printf("Pragma: %c%s\n", (state) ? '+' : '-', pragma);
+	fflush(stdout);
+
 	return tap_default_pragma_callback(tp, state, pragma);
 }
 
 static int
 plan(struct _tap_parser *tp, long upper, char *skip)
 {
-	fprintf(stderr, "Plan: 1..%ld %s\n", upper, skip);
+	printf("Plan: 1..%ld", upper);
+	if (skip)
+		printf(" # skip %s\n", skip);
+	else
+		putchar('\n');
+
+	fflush(stdout);
+
 	return tap_default_plan_callback(tp, upper, skip);
 }
 
 static int
 test(struct _tap_parser *tp, tap_test_result *ttr)
 {
-	fprintf(stderr, "Test: ");
+	printf("Test: %ld ", ttr->test_num);
 	switch (ttr->type) {
 	case TTT_OK:
-		fprintf(stderr, "ok ");
+		printf("ok");
 		break;
 	case TTT_NOT_OK:
-		fprintf(stderr, "not ok ");
+		printf("not ok");
 		break;
 	case TTT_TODO:
-		fprintf(stderr, "todo ");
+		printf("todo");
 		break;
 	case TTT_TODO_PASSED:
-		fprintf(stderr, "ok_todo ");
+		printf("ok todo");
 		break;
 	case TTT_SKIP:
-		fprintf(stderr, "skip ");
+		printf("skip");
 		break;
 	case TTT_SKIP_FAILED:
-		fprintf(stderr, "not_ok_skip ");
+		printf("not ok skip");
 		break;
 	}
 
-	fprintf(stderr, "%ld %s # %s\n", ttr->test_num, ttr->reason, ttr->directive);
+	if (ttr->reason) {
+		if (ttr->directive)
+			printf(": %s (%s)\n", ttr->reason, ttr->directive);
+		else
+			printf(": %s\n", ttr->reason);
+	}
+	else if (ttr->directive)
+		printf(" (%s)\n", ttr->directive);
+	else
+		putchar('\n');
+
+	fflush(stdout);
+
 	return tap_default_test_callback(tp, ttr);
 }
 
 
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
 	tap_parser tp;
+
+
+	if (argc != 2) {
+		fprintf(stderr, "usage: %s <filename>\n", argv[0]);
+		return 1;
+	}
 
 	tap_parser_init(&tp, 512);
 
@@ -106,7 +164,10 @@ int main(int argc, char *argv[])
 		/* do nothing */
 	}
 
-	printf("Aborted or end of input?\n");
+	if (tp.bailed)
+		printf("Bailed out.\n");
+
+	printf("\nFailed %ld of %ld tests\n", tp.actual_failed, tp.plan);
 
 	tap_parser_fini(&tp);
 	close(tp.fd);

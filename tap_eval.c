@@ -2,6 +2,9 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "tap_parser.h"
 #include "tap_utils.h"
@@ -236,9 +239,7 @@ static int
 parse_pragma(tap_parser *tp)
 {
 	int state;
-	size_t len;
 	char *c;
-	char *pragma;
 	char *buf;
 
 	if (strncmp(tp->buffer, "pragma", sizeof("pragma") - 1) != 0)
@@ -374,6 +375,7 @@ parse_test(tap_parser *tp)
 	if (*end == '\0') {
 		/* not reason or directive */
 		memset(&ttr, 0, sizeof(ttr));
+		ttr.type = type;
 		ttr.test_num = test_num;
 		ret_call1(tp, test_callback, &ttr);
 	}
@@ -422,7 +424,10 @@ rasons:
 		c = strchr(buf, '#');
 		if (c == NULL) {
 			/* We only have a description */
+			ttr.type = type;
 			ttr.reason = chomp(buf);
+			if (ttr.reason[0] == '\0')
+				ttr.reason = NULL;
 			ret_call1(tp, test_callback, &ttr);
 		}
 
@@ -430,6 +435,8 @@ rasons:
 		*c = '\0';
 		/* save off the reason */
 		ttr.reason = chomp(buf);
+		if (ttr.reason[0] == '\0')
+			ttr.reason = NULL;
 
 		buf = c;
 	}
@@ -445,7 +452,9 @@ rasons:
 		else
 			type = TTT_SKIP;
 
-		ttr.directive = trim(buf + 4);
+		buf = trim(buf + 4);
+		if (*buf != '\0')
+			ttr.directive = buf;
 	}
 	else if (strncasecmp(buf, "todo", 4) == 0) {
 		if (type == TTT_OK)
@@ -453,7 +462,9 @@ rasons:
 		else
 			type = TTT_TODO;
 
-		ttr.directive = trim(buf + 4);
+		buf = trim(buf + 4);
+		if (*buf != '\0')
+			ttr.directive = buf;
 	}
 
 	ttr.type = type;
@@ -483,10 +494,6 @@ tap_eval(tap_parser *tp)
 			ret_call1(tp, bailout_callback, NULL);
 	}
 
-
-	/* line too long... or maybe hit eof? */
-	if (tp->buffer[tp->buffer_len - 1] != '\n')
-		return invalid(tp, "Line too long!");
 
 	/* skip whitespace only lines */
 	if (strip(tp->buffer)[0] == '\0')
