@@ -484,6 +484,10 @@ tap_eval(tap_parser *tp)
 	}
 
 
+	/* line too long... or maybe hit eof? */
+	if (tp->buffer[tp->buffer_len - 1] != '\n')
+		return invalid(tp, "Line too long!");
+
 	/* skip whitespace only lines */
 	if (strip(tp->buffer)[0] == '\0')
 		return 0;
