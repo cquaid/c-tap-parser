@@ -17,3 +17,5 @@
 #define MAX_TAP_VERSION 13
 
 #endif /* _H_TAP_CONSTANTS */
+
+/* vim: set ts=4 sw=4 sts=4 expandtab: */

@@ -4,20 +4,20 @@
 #include <stddef.h>
 
 enum tap_test_type {
-	TTT_OK,          /* ok ...                */
-	TTT_NOT_OK,      /* not ok ...            */
-	TTT_TODO,        /* not ok ... # todo ... */
-	TTT_TODO_PASSED, /* ok ... # todo ...     */
-	TTT_SKIP,        /* ok ... # skip ...     */
-	TTT_SKIP_FAILED  /* not ok ... # skip ... */
+    TTT_OK,          /* ok ...                */
+    TTT_NOT_OK,      /* not ok ...            */
+    TTT_TODO,        /* not ok ... # todo ... */
+    TTT_TODO_PASSED, /* ok ... # todo ...     */
+    TTT_SKIP,        /* ok ... # skip ...     */
+    TTT_SKIP_FAILED  /* not ok ... # skip ... */
 };
 
 /* easy way to pass around the test result */
 typedef struct {
-	enum tap_test_type type;
-	long test_num;
-	char *reason;
-	char *directive;
+    enum tap_test_type type;
+    long test_num;
+    char *reason;
+    char *directive;
 } tap_test_result;
 
 struct _tap_parser;
@@ -90,44 +90,44 @@ typedef int(*tap_unknown_callback)(struct _tap_parser*);
 typedef int(*tap_invalid_callback)(struct _tap_parser*, const char*);
 
 typedef struct _tap_parser {
-	/* Parser Callbacks */
-	tap_test_callback test_callback;
-	tap_plan_callback plan_callback;
-	/* tap_yaml_callback yaml_callback; */ /* not supported */
-	tap_pragma_callback pragma_callback;
-	tap_bailout_callback bailout_callback;
-	tap_comment_callback comment_callback;
-	tap_version_callback version_callback;
-	tap_unknown_callback unknown_callback;
-	/* when a parse error is thrown, go here */
-	tap_invalid_callback invalid_callback;
+    /* Parser Callbacks */
+    tap_test_callback test_callback;
+    tap_plan_callback plan_callback;
+    /* tap_yaml_callback yaml_callback; */ /* not supported */
+    tap_pragma_callback pragma_callback;
+    tap_bailout_callback bailout_callback;
+    tap_comment_callback comment_callback;
+    tap_version_callback version_callback;
+    tap_unknown_callback unknown_callback;
+    /* when a parse error is thrown, go here */
+    tap_invalid_callback invalid_callback;
 
-	/* Parser Storage */
-	int first_line;
-	char *buffer;
-	size_t buffer_len;
+    /* Parser Storage */
+    int first_line;
+    char *buffer;
+    size_t buffer_len;
 
-	/* Parser Config */
-	int strict;
-	int fd;
-	int blocking_time;
+    /* Parser Config */
+    int strict;
+    int fd;
+    int blocking_time;
 
-	/* TAP Specific Members */
-	int bailed;   /* have we bailed? */
-	long version;
-	long plan;
-	long test_num;
-	long tests_run;
-	long skipped;
-	long passed;
-	long todo;
-	long failed;
-	long actual_failed;     /* failed + todo */
-	long actual_passed;     /* passed + skipped */
-	long todo_passed;       /* todo's that unexpectedly succeed */
-	long parse_errors;      /* number of parse errors found */
-	int skip_all;          /* Skip all tests? */
-	char *skip_all_reason; /* Why all tests are skipped */
+    /* TAP Specific Members */
+    int bailed;   /* have we bailed? */
+    long version;
+    long plan;
+    long test_num;
+    long tests_run;
+    long skipped;
+    long passed;
+    long todo;
+    long failed;
+    long actual_failed;     /* failed + todo */
+    long actual_passed;     /* passed + skipped */
+    long todo_passed;       /* todo's that unexpectedly succeed */
+    long parse_errors;      /* number of parse errors found */
+    int skip_all;          /* Skip all tests? */
+    char *skip_all_reason; /* Why all tests are skipped */
 } tap_parser;
 
 /* Initialize the parser, returns errno from malloc on failure */
@@ -150,3 +150,5 @@ extern int tap_default_plan_callback(struct _tap_parser *tp, long upper, char *s
 extern int tap_default_test_callback(struct _tap_parser *tp, tap_test_result *ttr);
 
 #endif /* _H_TAP_PARSER */
+
+/* vim: set ts=4 sw=4 sts=4 expandtab: */
