@@ -11,29 +11,28 @@
 #include "tap_constants.h"
 
 
-#define cast(tp) (struct _tap_parser *)tp
 #define ret_call0(tp, fn) do { \
                               if ((tp)->fn == NULL) \
-                                  return tap_default_##fn(cast(tp)); \
-                              return (tp)->fn(cast(tp)); \
+                                  return tap_default_##fn(tp); \
+                              return (tp)->fn(tp); \
                           } while (0)
 #define ret_call1(tp, fn, a) do { \
                                  if ((tp)->fn == NULL) \
-                                     return tap_default_##fn(cast(tp), a); \
-                                 return (tp)->fn(cast(tp), a); \
+                                     return tap_default_##fn(tp, a); \
+                                 return (tp)->fn(tp, a); \
                              } while (0)
 #define ret_call2(tp, fn, a, b) do { \
                                     if ((tp)->fn == NULL) \
-                                        return tap_default_##fn(cast(tp), a, b); \
-                                    return (tp)->fn(cast(tp), a, b); \
+                                        return tap_default_##fn(tp, a, b); \
+                                    return (tp)->fn(tp, a, b); \
                                 } while (0)
 
-static int invalid(struct _tap_parser *tp, const char *fmt, ...);
+static int invalid(tap_parser *tp, const char *fmt, ...);
 
 /* Default callback functions */
 
 int
-tap_default_invalid_callback(struct _tap_parser *tp, const char *msg)
+tap_default_invalid_callback(tap_parser *tp, const char *msg)
 {
     /* increment our parse errors */
     tp->parse_errors++;
@@ -47,7 +46,7 @@ tap_default_invalid_callback(struct _tap_parser *tp, const char *msg)
 }
 
 int
-tap_default_unknown_callback(struct _tap_parser *tp)
+tap_default_unknown_callback(tap_parser *tp)
 {
     /* technically a parse error */
     tp->parse_errors++;
@@ -55,7 +54,7 @@ tap_default_unknown_callback(struct _tap_parser *tp)
 }
 
 int
-tap_default_version_callback(struct _tap_parser *tp, long tap_version)
+tap_default_version_callback(tap_parser *tp, long tap_version)
 {
     if (tap_version > MAX_TAP_VERSION) {
         return invalid(tp, "TAP Version %ld is greater than "
@@ -74,14 +73,14 @@ tap_default_version_callback(struct _tap_parser *tp, long tap_version)
 }
 
 int
-tap_default_comment_callback(struct _tap_parser *tp)
+tap_default_comment_callback(tap_parser *tp)
 {
     (void)tp; /* stop compiler warning */
     return 0;
 }
 
 int
-tap_default_bailout_callback(struct _tap_parser *tp, char *msg)
+tap_default_bailout_callback(tap_parser *tp, char *msg)
 {
     tp->bailed = 1;
 
@@ -92,7 +91,7 @@ tap_default_bailout_callback(struct _tap_parser *tp, char *msg)
 }
 
 int
-tap_default_pragma_callback(struct _tap_parser *tp, int state, char *pragma)
+tap_default_pragma_callback(tap_parser *tp, int state, char *pragma)
 {
     if (strncmp(pragma, "strict", sizeof("strict") - 1) == 0) {
         tp->strict = state;
@@ -104,7 +103,7 @@ tap_default_pragma_callback(struct _tap_parser *tp, int state, char *pragma)
 }
 
 int
-tap_default_plan_callback(struct _tap_parser *tp, long upper, char *skip)
+tap_default_plan_callback(tap_parser *tp, long upper, char *skip)
 {
     /* Already encountered a plan?? */
     if (tp->plan != -1)
@@ -131,7 +130,7 @@ tap_default_plan_callback(struct _tap_parser *tp, long upper, char *skip)
 }
 
 int
-tap_default_test_callback(struct _tap_parser *tp, tap_test_result *ttr)
+tap_default_test_callback(tap_parser *tp, tap_test_result *ttr)
 {
     if (tp->plan != -1 && ttr->test_num > tp->plan) {
         return invalid(tp, "Test %ld outside of plan bounds 1..%ld",
@@ -270,9 +269,9 @@ parse_pragma(tap_parser *tp)
         /* end buf to pass to pragma callback */
         *c = '\0';
         if (tp->pragma_callback == NULL)
-            tap_default_pragma_callback(cast(tp), state, buf);
+            tap_default_pragma_callback(tp, state, buf);
         else
-            tp->pragma_callback(cast(tp), state, buf);
+            tp->pragma_callback(tp, state, buf);
 
 
         /* more than one in list, skip past , */

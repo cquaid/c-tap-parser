@@ -9,14 +9,14 @@
 #include "../tap_parser.h"
 
 /* Callback Functions */
-static int invalid(struct _tap_parser *tp, const char *msg);
-static int unknown(struct _tap_parser *tp);
-static int version(struct _tap_parser *tp, long tap_version);
-static int comment(struct _tap_parser *tp);
-static int bailout(struct _tap_parser *tp, char *msg);
-static int pragma(struct _tap_parser *tp, int state, char *pragma);
-static int plan(struct _tap_parser *tp, long upper, char *skip);
-static int test(struct _tap_parser *tp, tap_test_result *ttr);
+static int invalid(tap_parser *tp, const char *msg);
+static int unknown(tap_parser *tp);
+static int version(tap_parser *tp, long tap_version);
+static int comment(tap_parser *tp);
+static int bailout(tap_parser *tp, char *msg);
+static int pragma(tap_parser *tp, int state, char *pragma);
+static int plan(tap_parser *tp, long upper, char *skip);
+static int test(tap_parser *tp, tap_test_result *ttr);
 
 /* Helpers */
 static pid_t exec_test(tap_parser *tp, const char *path);
@@ -111,7 +111,7 @@ exec_test(tap_parser *tp, const char *path)
 
 
 static int
-invalid(struct _tap_parser *tp, const char *msg)
+invalid(tap_parser *tp, const char *msg)
 {
     fprintf(stderr, "Error: %s\n", msg);
     fflush(stderr);
@@ -120,7 +120,7 @@ invalid(struct _tap_parser *tp, const char *msg)
 }
 
 static int
-unknown(struct _tap_parser *tp)
+unknown(tap_parser *tp)
 {
     size_t len;
 
@@ -136,7 +136,7 @@ unknown(struct _tap_parser *tp)
 }
 
 static int
-version(struct _tap_parser *tp, long tap_version)
+version(tap_parser *tp, long tap_version)
 {
     printf("Version: %ld\n", tap_version);
     fflush(stdout);
@@ -145,7 +145,7 @@ version(struct _tap_parser *tp, long tap_version)
 }
 
 static int
-comment(struct _tap_parser *tp)
+comment(tap_parser *tp)
 {
     size_t len;
 
@@ -161,7 +161,7 @@ comment(struct _tap_parser *tp)
 }
 
 static int
-bailout(struct _tap_parser *tp, char *msg)
+bailout(tap_parser *tp, char *msg)
 {
     printf("Bail out!");
     if (msg)
@@ -175,7 +175,7 @@ bailout(struct _tap_parser *tp, char *msg)
 }
 
 static int
-pragma(struct _tap_parser *tp, int state, char *pragma)
+pragma(tap_parser *tp, int state, char *pragma)
 {
     printf("Pragma: %c%s\n", (state) ? '+' : '-', pragma);
     fflush(stdout);
@@ -184,7 +184,7 @@ pragma(struct _tap_parser *tp, int state, char *pragma)
 }
 
 static int
-plan(struct _tap_parser *tp, long upper, char *skip)
+plan(tap_parser *tp, long upper, char *skip)
 {
     printf("Plan: 1..%ld", upper);
     if (skip)
@@ -198,7 +198,7 @@ plan(struct _tap_parser *tp, long upper, char *skip)
 }
 
 static int
-test(struct _tap_parser *tp, tap_test_result *ttr)
+test(tap_parser *tp, tap_test_result *ttr)
 {
     printf("Test: %ld ", ttr->test_num);
     switch (ttr->type) {

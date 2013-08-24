@@ -21,7 +21,7 @@ typedef struct {
 } tap_test_result;
 
 struct _tap_parser;
-
+typedef struct _tap_parser tap_parser;
 
 /* test callback called for every TAP test:
  * Args:
@@ -30,7 +30,7 @@ struct _tap_parser;
  * The ttr->type for TTT_TODO_PASSED and TTT_SKIP_FAILED
  * are actually error cases.
  */
-typedef int(*tap_test_callback)(struct _tap_parser*, tap_test_result*);
+typedef int(*tap_test_callback)(tap_parser*, tap_test_result*);
 
 /* plan callback is called everytime a plan statement is found
  * Args:
@@ -44,7 +44,7 @@ typedef int(*tap_test_callback)(struct _tap_parser*, tap_test_result*);
  *  "1..0"   At top of input, skip everything.
  *  "1..0 # skip <message>"  At top of input, skip everything, report <message>"
  */
-typedef int(*tap_plan_callback)(struct _tap_parser*, long, char*);
+typedef int(*tap_plan_callback)(tap_parser*, long, char*);
 
 /* pragma callback is called for each pragma found in the
  * pragma directive list.
@@ -52,19 +52,19 @@ typedef int(*tap_plan_callback)(struct _tap_parser*, long, char*);
  *  int state - state of the pragma, 0 - off, 1 - on
  *  char *pragma_name - name of the pragma to modify
  */
-typedef int(*tap_pragma_callback)(struct _tap_parser*, int, char*);
+typedef int(*tap_pragma_callback)(tap_parser*, int, char*);
 
 /* bailout callback called when 'Bail out!' is encountered
  * Args:
  *  char *bailout_reason - why we bailed
  */
-typedef int(*tap_bailout_callback)(struct _tap_parser*, char*);
+typedef int(*tap_bailout_callback)(tap_parser*, char*);
 
 /* comment_callback, called when a comment is found
  *
  * the comment can be found in *tp->buffer
  */
-typedef int(*tap_comment_callback)(struct _tap_parser*);
+typedef int(*tap_comment_callback)(tap_parser*);
 
 /* version callback, called when a version is found
  * Args:
@@ -73,7 +73,7 @@ typedef int(*tap_comment_callback)(struct _tap_parser*);
  * This will only ever be called ONCE, and ONLY if it's the first
  * line of input.  All others call invalid_callback.
  */
-typedef int(*tap_version_callback)(struct _tap_parser*, long);
+typedef int(*tap_version_callback)(tap_parser*, long);
 
 
 /* unknown is called when the evaluator doesn't know what to
@@ -81,15 +81,15 @@ typedef int(*tap_version_callback)(struct _tap_parser*, long);
  *
  * the raw line can be found in *tp->buffer
  */
-typedef int(*tap_unknown_callback)(struct _tap_parser*);
+typedef int(*tap_unknown_callback)(tap_parser*);
 
 /* invalid callback is called when a parse error is thrown
  * Args:
  *  const char *error_message
  */
-typedef int(*tap_invalid_callback)(struct _tap_parser*, const char*);
+typedef int(*tap_invalid_callback)(tap_parser*, const char*);
 
-typedef struct _tap_parser {
+struct _tap_parser {
     /* Parser Callbacks */
     tap_test_callback test_callback;
     tap_plan_callback plan_callback;
@@ -128,7 +128,7 @@ typedef struct _tap_parser {
     long parse_errors;      /* number of parse errors found */
     int skip_all;          /* Skip all tests? */
     char *skip_all_reason; /* Why all tests are skipped */
-} tap_parser;
+};
 
 /* Initialize the parser, returns errno from malloc on failure */
 extern int tap_parser_init(tap_parser *tp, size_t buffer_len);
@@ -140,14 +140,14 @@ extern void tap_parser_fini(tap_parser *tp);
 extern int tap_parser_next(tap_parser *tp);
 
 /* default callbacks */
-extern int tap_default_invalid_callback(struct _tap_parser *tp, const char *msg);
-extern int tap_default_unknown_callback(struct _tap_parser *tp);
-extern int tap_default_version_callback(struct _tap_parser *tp, long tap_version);
-extern int tap_default_comment_callback(struct _tap_parser *tp);
-extern int tap_default_bailout_callback(struct _tap_parser *tp, char *msg);
-extern int tap_default_pragma_callback(struct _tap_parser *tp, int state, char *pragma);
-extern int tap_default_plan_callback(struct _tap_parser *tp, long upper, char *skip);
-extern int tap_default_test_callback(struct _tap_parser *tp, tap_test_result *ttr);
+extern int tap_default_invalid_callback(tap_parser *tp, const char *msg);
+extern int tap_default_unknown_callback(tap_parser *tp);
+extern int tap_default_version_callback(tap_parser *tp, long tap_version);
+extern int tap_default_comment_callback(tap_parser *tp);
+extern int tap_default_bailout_callback(tap_parser *tp, char *msg);
+extern int tap_default_pragma_callback(tap_parser *tp, int state, char *pragma);
+extern int tap_default_plan_callback(tap_parser *tp, long upper, char *skip);
+extern int tap_default_test_callback(tap_parser *tp, tap_test_result *ttr);
 
 #endif /* _H_TAP_PARSER */
 
