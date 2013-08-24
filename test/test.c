@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -5,6 +7,108 @@
 #include <unistd.h>
 
 #include "../tap_parser.h"
+
+/* Callback Functions */
+static int invalid(struct _tap_parser *tp, const char *msg);
+static int unknown(struct _tap_parser *tp);
+static int version(struct _tap_parser *tp, long tap_version);
+static int comment(struct _tap_parser *tp);
+static int bailout(struct _tap_parser *tp, char *msg);
+static int pragma(struct _tap_parser *tp, int state, char *pragma);
+static int plan(struct _tap_parser *tp, long upper, char *skip);
+static int test(struct _tap_parser *tp, tap_test_result *ttr);
+
+/* Helpers */
+static pid_t exec_test(tap_parser *tp, const char *path);
+
+int
+main(int argc, char *argv[])
+{
+	pid_t pid;
+	tap_parser tp;
+
+
+	if (argc != 2) {
+		fprintf(stderr, "usage: %s <filename>\n", argv[0]);
+		return 1;
+	}
+
+	tap_parser_init(&tp, 512);
+
+	pid = exec_test(&tp, argv[1]);
+	printf("Child pid: %lu\n", (unsigned long)pid);
+
+	tp.test_callback = test;
+	tp.plan_callback = plan;
+	tp.pragma_callback = pragma;
+	tp.bailout_callback = bailout;
+	tp.comment_callback = comment;
+	tp.version_callback = version;
+	tp.unknown_callback = unknown;
+	tp.invalid_callback = invalid;
+
+	while (tap_parser_next(&tp) == 0) {
+		/* do nothing */
+	}
+
+	if (tp.bailed)
+		printf("Bailed out.\n");
+
+	printf("\nFailed %ld of %ld tests\n", tp.actual_failed, tp.plan);
+
+	tap_parser_fini(&tp);
+	close(tp.fd);
+	return 0;
+}
+
+static pid_t
+exec_test(tap_parser *tp, const char *path)
+{
+	pid_t child;
+	int pipes[2];
+
+#define READ_PIPE  0
+#define WRITE_PIPE 1
+	if (pipe(pipes) == -1) {
+		perror("pipe()");
+		exit(EXIT_FAILURE);
+	}
+
+	child = fork();
+	if (child == (pid_t)-1) {
+		perror("fork()");
+		exit(EXIT_FAILURE);	
+	}
+
+	if (child == 0) {
+		/* child proc */
+		int fd = open("/dev/null", O_WRONLY);
+		if (fd == -1)
+			exit(EXIT_FAILURE);
+		if (dup2(fd, STDERR_FILENO) == -1)
+			exit(EXIT_FAILURE);
+
+		if (dup2(pipes[WRITE_PIPE], STDOUT_FILENO) == -1)
+			exit(EXIT_FAILURE);
+
+		close(fd);
+		close(pipes[READ_PIPE]);
+		close(pipes[WRITE_PIPE]);
+
+		if (execl(path, path, (char *)NULL) == -1)
+			exit(EXIT_FAILURE);
+	}
+	else {
+		/* parent, close write end */
+		close(pipes[WRITE_PIPE]);
+	}
+
+	tp->fd = pipes[READ_PIPE];
+	return child;
+#undef READ_PIPE
+#undef WRITE_PIPE
+}
+
 
 static int
 invalid(struct _tap_parser *tp, const char *msg)
@@ -132,44 +236,4 @@ test(struct _tap_parser *tp, tap_test_result *ttr)
 	fflush(stdout);
 
 	return tap_default_test_callback(tp, ttr);
-}
-
-
-
-int
-main(int argc, char *argv[])
-{
-	tap_parser tp;
-
-
-	if (argc != 2) {
-		fprintf(stderr, "usage: %s <filename>\n", argv[0]);
-		return 1;
-	}
-
-	tap_parser_init(&tp, 512);
-
-	tp.fd = open(argv[1], O_RDONLY);
-
-	tp.test_callback = test;
-	tp.plan_callback = plan;
-	tp.pragma_callback = pragma;
-	tp.bailout_callback = bailout;
-	tp.comment_callback = comment;
-	tp.version_callback = version;
-	tp.unknown_callback = unknown;
-	tp.invalid_callback = invalid;
-
-	while (tap_parser_next(&tp) == 0) {
-		/* do nothing */
-	}
-
-	if (tp.bailed)
-		printf("Bailed out.\n");
-
-	printf("\nFailed %ld of %ld tests\n", tp.actual_failed, tp.plan);
-
-	tap_parser_fini(&tp);
-	close(tp.fd);
-	return 0;
 }
