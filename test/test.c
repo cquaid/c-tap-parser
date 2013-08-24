@@ -19,6 +19,7 @@ static int plan(tap_parser *tp, long upper, char *skip);
 static int test(tap_parser *tp, tap_test_result *ttr);
 
 /* Helpers */
+static void dump_tap_stats(tap_parser *tp);
 static pid_t exec_test(tap_parser *tp, const char *path);
 
 int
@@ -51,14 +52,37 @@ main(int argc, char *argv[])
         /* do nothing */
     }
 
-    if (tp.bailed)
-        printf("Bailed out.\n");
-
-    printf("\nFailed %ld of %ld tests\n", tp.actual_failed, tp.plan);
+    dump_tap_stats(&tp);
 
     tap_parser_fini(&tp);
     close(tp.fd);
     return 0;
+}
+
+static void
+dump_tap_stats(tap_parser *tp)
+{
+    putchar('\n');
+    if (tp->bailed)
+        printf("Bailed out.\n");
+
+    if (tp->skip_all) {
+        if (tp->skip_all_reason)
+            printf("All Skipped (%s)\n\n", tp->skip_all_reason);
+        else
+            printf("All Skipped.\n\n");
+    }
+
+    printf("Ran %ld of %ld tests:\n", tp->test_num, tp->plan);
+    printf("    Tap Version: %ld\n", tp->version);
+    printf("     Tap Errors: %ld\n", tp->parse_errors);
+    printf("         Failed: %ld\n", tp->failed);
+    printf("  Actual Failed: %ld\n", tp->actual_failed);
+    printf("         Passed: %ld\n", tp->passed);
+    printf("  Actual Passed: %ld\n", tp->actual_passed);
+    printf("        Skipped: %ld\n", tp->skipped);
+    printf("          Todos: %ld\n", tp->todo);
+    printf("  Dubious Todos: %ld\n", tp->todo_passed);
 }
 
 static pid_t
@@ -237,3 +261,5 @@ test(tap_parser *tp, tap_test_result *ttr)
 
     return tap_default_test_callback(tp, ttr);
 }
+
+/* vim: set ts=4 sw=4 sws=4 expandtab: */
