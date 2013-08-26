@@ -305,7 +305,7 @@ parse_plan(tap_parser *tp)
     if (upper < 0)
         return -1;
 
-    if (*end != '\0' && !isspace(*end))
+    if (*end != '\0' && !isspace(*end) && *end != '#')
         return -1;
 
     if (upper == 0 && errno == EINVAL)
@@ -325,7 +325,8 @@ parse_plan(tap_parser *tp)
     if (*buf == '\0')
         ret_call2(tp, plan_callback, upper, NULL);
 
-    if (*buf != '#')
+    /* Can only have a skip directive iff upper == 0 */
+    if (*buf != '#' || upper != 0)
         return invalid(tp, TE_PLAN_PARSE, "Trailing characters after test plan");
 
     buf = strip(buf + 1);
