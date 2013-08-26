@@ -1,9 +1,7 @@
 SRC = tap_eval.c tap_parser.c
 OBJ = ${SRC:.c=.o}
 
-testprog = test
-
-test_SRC = $(testprog)/test.c $(SRC)
+test_SRC = test.c $(SRC)
 test_OBJ = ${test_SRC:.c=.o}
 
 # gnu99 for strdup and strncasecmp
@@ -19,11 +17,11 @@ options:
 
 
 testprog: ${test_OBJ}
-	@echo "CC -o $@"
-	@${CC} -o $@ ${test_OBJ}
+	@echo "CC -o test"
+	@${CC} -o test ${test_OBJ}
 
 
 .PHONY: clean
 clean:
-	@rm -f testprog
+	@rm -f test
 	@rm -f $(OBJ) $(test_OBJ)

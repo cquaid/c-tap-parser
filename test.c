@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "../tap_parser.h"
+#include "tap_parser.h"
 
 /* Globals */
 static int verbose = 0;
