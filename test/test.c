@@ -9,7 +9,7 @@
 #include "../tap_parser.h"
 
 /* Callback Functions */
-static int invalid(tap_parser *tp, const char *msg);
+static int invalid(tap_parser *tp, int err, const char *msg);
 static int unknown(tap_parser *tp);
 static int version(tap_parser *tp, long tap_version);
 static int comment(tap_parser *tp);
@@ -134,12 +134,12 @@ exec_test(tap_parser *tp, const char *path)
 
 
 static int
-invalid(tap_parser *tp, const char *msg)
+invalid(tap_parser *tp, int err, const char *msg)
 {
-    fprintf(stderr, "Error: %s\n", msg);
+    fprintf(stderr, "Error: [%d] %s\n", err, msg);
     fflush(stderr);
 
-    return tap_default_invalid_callback(tp, msg);
+    return tap_default_invalid_callback(tp, err, msg);
 }
 
 static int

@@ -3,6 +3,25 @@
 
 #include <stddef.h>
 
+/* Error codes for the invalid callback
+ * Starting at 1000 to circumvent conflicting with an errno
+ */
+enum tap_error_code {
+    TE_VERSION_RANGE  = 1000, /* version > max || version < min */
+    TE_PRAGMA_UNKNOWN = 1001, /* Unknown pragma */
+    TE_PRAGMA_PARSE   = 1002, /* Parse error in pragma line */
+    TE_PLAN_PARSE     = 1003, /* Plan parse error */
+    TE_PLAN_INVAL     = 1004, /* Plan upper bound too large or small */
+    TE_PLAN_MULTI     = 1005, /* More than one plan */
+    TE_TEST_INVAL     = 1006, /* test num > max for plan || test num < 0 */
+    TE_TEST_DUP       = 1007, /* Duplicate test number */
+    TE_TEST_ORDER     = 1008, /* Out of order test numbers? */
+    TE_TEST_UNKNOWN   = 1009, /* Catchall for unknown test issues */
+    TE_TODO_PASS      = 1010, /* Todo unexpectedly passed */
+    TE_SKIP_FAIL      = 1011, /* Skip unexpectedly failed */
+    TE_UNKNOWN        = 1012, /* Unknown errors... or something */
+};
+
 enum tap_test_type {
     TTT_OK,          /* ok ...                */
     TTT_NOT_OK,      /* not ok ...            */
@@ -85,9 +104,10 @@ typedef int(*tap_unknown_callback)(tap_parser*);
 
 /* invalid callback is called when a parse error is thrown
  * Args:
+ *  int error_code
  *  const char *error_message
  */
-typedef int(*tap_invalid_callback)(tap_parser*, const char*);
+typedef int(*tap_invalid_callback)(tap_parser*, int, const char*);
 
 struct _tap_parser {
     /* Parser Callbacks */
@@ -140,7 +160,7 @@ extern void tap_parser_fini(tap_parser *tp);
 extern int tap_parser_next(tap_parser *tp);
 
 /* default callbacks */
-extern int tap_default_invalid_callback(tap_parser *tp, const char *msg);
+extern int tap_default_invalid_callback(tap_parser *tp, int, const char *msg);
 extern int tap_default_unknown_callback(tap_parser *tp);
 extern int tap_default_version_callback(tap_parser *tp, long tap_version);
 extern int tap_default_comment_callback(tap_parser *tp);

@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -27,20 +28,18 @@
                                     return (tp)->fn(tp, a, b); \
                                 } while (0)
 
-static int invalid(tap_parser *tp, const char *fmt, ...);
+static int invalid(tap_parser *tp, int err, const char *fmt, ...);
 
 /* Default callback functions */
 
 int
-tap_default_invalid_callback(tap_parser *tp, const char *msg)
+tap_default_invalid_callback(tap_parser *tp, int err, const char *msg)
 {
     /* increment our parse errors */
     tp->parse_errors++;
 
-    /* useless, mainly to stop a compile warning
-     * for unused data. */
-    if (msg == NULL)
-        return 0;
+    (void)err;
+    (void)msg;
 
     return 0;
 }
@@ -57,13 +56,15 @@ int
 tap_default_version_callback(tap_parser *tp, long tap_version)
 {
     if (tap_version > MAX_TAP_VERSION) {
-        return invalid(tp, "TAP Version %ld is greater than "
+        return invalid(tp, TE_VERSION_RANGE,
+                           "TAP Version %ld is greater than "
                            "the maximum of %ld",
                        tap_version, MAX_TAP_VERSION);
     }
 
     if (tap_version < MIN_TAP_VERSION) {
-        return invalid(tp, "TAP Version %ld is less than "
+        return invalid(tp, TE_VERSION_RANGE,
+                           "TAP Version %ld is less than "
                            "the minimum of %ld",
                        tap_version, MIN_TAP_VERSION);
     }
@@ -99,7 +100,7 @@ tap_default_pragma_callback(tap_parser *tp, int state, char *pragma)
     }
 
     /* always report invalid pragmas */
-    return invalid(tp, "Invalid pragma: %s", pragma);
+    return invalid(tp, TE_PRAGMA_UNKNOWN, "Invalid pragma: %s", pragma);
 }
 
 int
@@ -107,7 +108,7 @@ tap_default_plan_callback(tap_parser *tp, long upper, char *skip)
 {
     /* Already encountered a plan?? */
     if (tp->plan != -1)
-        return invalid(tp, "More than one plan given");
+        return invalid(tp, TE_PLAN_MULTI, "More than one plan given");
 
     tp->plan = upper;
 
@@ -115,7 +116,7 @@ tap_default_plan_callback(tap_parser *tp, long upper, char *skip)
         tp->skip_all = 1;
         tp->skip_all_reason = strdup(skip);
         if (tp->skip_all_reason == NULL)
-            return invalid(tp, "strdup failed: %s", strerror(errno));
+            return invalid(tp, errno, "strdup failed: %s", strerror(errno));
 
         return 0;
     }
@@ -133,7 +134,8 @@ int
 tap_default_test_callback(tap_parser *tp, tap_test_result *ttr)
 {
     if (tp->plan != -1 && ttr->test_num > tp->plan) {
-        return invalid(tp, "Test %ld outside of plan bounds 1..%ld",
+        return invalid(tp, TE_TEST_INVAL,
+                       "Test %ld outside of plan bounds 1..%ld",
                        ttr->test_num, tp->plan);
     }
 
@@ -142,12 +144,12 @@ tap_default_test_callback(tap_parser *tp, tap_test_result *ttr)
         tp->todo++;
         tp->todo_passed++;
         tp->passed++;
-        return invalid(tp, "TODO test passed: %s", tp->buffer);
+        return invalid(tp, TE_TODO_PASS, "TODO test passed: %s", tp->buffer);
 
     case TTT_SKIP_FAILED:
         tp->failed++;
         tp->skipped++;
-        return invalid(tp, "SKIP test failed: %s", tp->buffer);
+        return invalid(tp, TE_SKIP_FAIL, "SKIP test failed: %s", tp->buffer);
 
     case TTT_OK:
         tp->passed++;
@@ -174,7 +176,7 @@ tap_default_test_callback(tap_parser *tp, tap_test_result *ttr)
     }
 
     /* Should never happen... EVER */
-    return invalid(tp, "%s: Invalid tap_test_result?!", __func__);
+    return invalid(tp, TE_TEST_UNKNOWN, "%s: Invalid tap_test_result?!", __func__);
 }
 
 
@@ -223,7 +225,7 @@ parse_version(tap_parser *tp)
         return -1;
 
     if (version == LONG_MAX && errno == ERANGE)
-        return invalid(tp, "TAP version too large");
+        return invalid(tp, TE_VERSION_RANGE, "TAP version too large");
 
     buf = strip(end);
     if (*buf != '\0')
@@ -256,7 +258,7 @@ parse_pragma(tap_parser *tp)
             state = 0;
             break;
         default:
-            return invalid(tp, "Invalid pragma");
+            return invalid(tp, TE_PRAGMA_PARSE, "Invalid pragma");
         }
 
         ++buf;
@@ -277,7 +279,7 @@ parse_pragma(tap_parser *tp)
         /* more than one in list, skip past , */
         buf = strip(c + 1);
         if (*buf == '\0')
-            return invalid(tp, "Trailing comma in pragma list");
+            return invalid(tp, TE_PRAGMA_PARSE, "Trailing comma in pragma list");
     }
 
     /* XXX: invalid? */
@@ -310,13 +312,13 @@ parse_plan(tap_parser *tp)
         return -1;
 
     if (upper == LONG_MAX && errno == ERANGE)
-        return invalid(tp, "Test plan upper bound is too large");
+        return invalid(tp, TE_PLAN_INVAL, "Test plan upper bound is too large");
 
     if (*end == '\0')
         ret_call2(tp, plan_callback, upper, NULL);
 
     if (!isspace(*end) && *end != '#')
-        return invalid(tp, "Trailing characters in test plan");
+        return invalid(tp, TE_PLAN_PARSE, "Trailing characters in test plan");
 
     buf = strip(end);
 
@@ -324,7 +326,7 @@ parse_plan(tap_parser *tp)
         ret_call2(tp, plan_callback, upper, NULL);
 
     if (*buf != '#')
-        return invalid(tp, "Trailing characters after test plan");
+        return invalid(tp, TE_PLAN_PARSE, "Trailing characters after test plan");
 
     buf = strip(buf + 1);
     if (strncasecmp(buf, "skip", 4) != 0)
@@ -397,16 +399,17 @@ parse_test(tap_parser *tp)
     }
 
     if (test_num == LONG_MAX && errno == ERANGE)
-        return invalid(tp, "Test number is too large");
+        return invalid(tp, TE_TEST_INVAL, "Test number is too large");
 
 rasons:
     /* From this point we have a test_num */
     if (test_num != tp->test_num + 1) {
         if (test_num == tp->test_num) {
-            return invalid(tp, "Duplicate test number %ld",
+            return invalid(tp, TE_TEST_DUP,
+                           "Duplicate test number %ld",
                            test_num);
         }
-        return invalid(tp, "Tests out of order?!");
+        return invalid(tp, TE_TEST_ORDER, "Tests out of order?!");
     }
 
     memset(&ttr, 0, sizeof(ttr));
@@ -532,7 +535,7 @@ tap_eval(tap_parser *tp)
 
 
 static int
-invalid(struct _tap_parser *tp, const char *fmt, ...)
+invalid(struct _tap_parser *tp, int err, const char *fmt, ...)
 {
     va_list ap;
     static char msg[1024];
@@ -542,9 +545,9 @@ invalid(struct _tap_parser *tp, const char *fmt, ...)
     va_end(ap);
 
     if (tp->invalid_callback == NULL)
-        return tap_default_invalid_callback(tp, msg);
+        return tap_default_invalid_callback(tp, err, msg);
 
-    return tp->invalid_callback(tp, msg);
+    return tp->invalid_callback(tp, err, msg);
 }
 
 
