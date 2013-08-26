@@ -149,6 +149,17 @@ extern int tap_default_pragma_callback(tap_parser *tp, int state, char *pragma);
 extern int tap_default_plan_callback(tap_parser *tp, long upper, char *skip);
 extern int tap_default_test_callback(tap_parser *tp, tap_test_result *ttr);
 
+/* macros for setting callbacks */
+#define tap_parser_set_callback(tp, name, fn) do { (tp)->name##_callback = fn; } while(0)
+#define tap_parser_set_invalid_callback(tp, fn) tap_parser_set_callback(tp, invalid, fn)
+#define tap_parser_set_unknown_callback(tp, fn) tap_parser_set_callback(tp, unknown, fn)
+#define tap_parser_set_version_callback(tp, fn) tap_parser_set_callback(tp, version, fn)
+#define tap_parser_set_comment_callback(tp, fn) tap_parser_set_callback(tp, comment, fn)
+#define tap_parser_set_bailout_callback(tp, fn) tap_parser_set_callback(tp, bailout, fn)
+#define tap_parser_set_pragma_callback(tp, fn) tap_parser_set_callback(tp, pragma, fn)
+#define tap_parser_set_plan_callback(tp, fn) tap_parser_set_callback(tp, plan, fn)
+#define tap_parser_set_test_callback(tp, fn) tap_parser_set_callback(tp, test, fn)
+
 #endif /* _H_TAP_PARSER */
 
 /* vim: set ts=4 sw=4 sts=4 expandtab: */

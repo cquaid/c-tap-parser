@@ -39,18 +39,17 @@ main(int argc, char *argv[])
     pid = exec_test(&tp, argv[1]);
     printf("Child pid: %lu\n", (unsigned long)pid);
 
-    tp.test_callback = test;
-    tp.plan_callback = plan;
-    tp.pragma_callback = pragma;
-    tp.bailout_callback = bailout;
-    tp.comment_callback = comment;
-    tp.version_callback = version;
-    tp.unknown_callback = unknown;
-    tp.invalid_callback = invalid;
+    tap_parser_set_test_callback(&tp, test);
+    tap_parser_set_plan_callback(&tp, plan);
+    tap_parser_set_pragma_callback(&tp, pragma);
+    tap_parser_set_bailout_callback(&tp, bailout);
+    tap_parser_set_comment_callback(&tp, comment);
+    tap_parser_set_version_callback(&tp, version);
+    tap_parser_set_unknown_callback(&tp, unknown);
+    tap_parser_set_invalid_callback(&tp, invalid);
 
-    while (tap_parser_next(&tp) == 0) {
-        /* do nothing */
-    }
+    while (tap_parser_next(&tp) == 0)
+        ;
 
     dump_tap_stats(&tp);
 
@@ -101,7 +100,7 @@ exec_test(tap_parser *tp, const char *path)
     child = fork();
     if (child == (pid_t)-1) {
         perror("fork()");
-        exit(EXIT_FAILURE);    
+        exit(EXIT_FAILURE);
     }
 
     if (child == 0) {
