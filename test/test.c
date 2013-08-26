@@ -66,7 +66,7 @@ dump_tap_stats(tap_parser *tp)
         printf("Bailed out.\n");
 
     if (tp->skip_all) {
-        if (tp->skip_all_reason)
+        if (tp->skip_all_reason && tp->skip_all_reason[0] != '\0')
             printf("All Skipped (%s)\n\n", tp->skip_all_reason);
         else
             printf("All Skipped.\n\n");
