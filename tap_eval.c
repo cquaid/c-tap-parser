@@ -410,13 +410,19 @@ rasons:
                            "Duplicate test number %ld",
                            test_num);
         }
-        return invalid(tp, TE_TEST_ORDER, "Tests out of order?!");
+        /* Report error but don't act on it */
+        invalid(tp, TE_TEST_ORDER,
+                "Tests out of squence.  "
+                "Found (%ld) but expected (%ld)",
+                test_num, tp->test_num + 1);
+        test_num = tp->test_num + 1;
     }
 
     memset(&ttr, 0, sizeof(ttr));
     ttr.test_num = test_num;
 
     tp->test_num++;
+    tp->tests_run++;
 
     /* Now skip to the description or directive */
     buf = strip(buf);
