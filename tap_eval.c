@@ -28,6 +28,9 @@
                                     return (tp)->fn(tp, a, b); \
                                 } while (0)
 
+
+static void init_results_array(tap_parser *tp, long len);
+static void set_results_array(tap_parser *tp, long idx, enum tap_test_type value);
 static int invalid(tap_parser *tp, int err, const char *fmt, ...);
 
 /* Default callback functions */
@@ -314,6 +317,10 @@ parse_plan(tap_parser *tp)
     if (upper == LONG_MAX && errno == ERANGE)
         return invalid(tp, TE_PLAN_INVAL, "Test plan upper bound is too large");
 
+    /* This has to happen before the first ret_call...
+     * Allocate results list if unallocated, expand it necessary */
+    init_results_array(tp, upper);
+
     if (*end == '\0')
         ret_call2(tp, plan_callback, upper, NULL);
 
@@ -379,6 +386,10 @@ parse_test(tap_parser *tp)
         memset(&ttr, 0, sizeof(ttr));
         ttr.type = type;
         ttr.test_num = test_num;
+        /* increment the tp stats */
+        tp->test_num++;
+        tp->tests_run++;
+        set_results_array(tp, test_num, type);
         ret_call1(tp, test_callback, &ttr);
     }
 
@@ -437,6 +448,7 @@ rasons:
             ttr.reason = chomp(buf);
             if (ttr.reason[0] == '\0')
                 ttr.reason = NULL;
+            set_results_array(tp, test_num, type);
             ret_call1(tp, test_callback, &ttr);
         }
 
@@ -477,6 +489,7 @@ rasons:
     }
 
     ttr.type = type;
+    set_results_array(tp, test_num, type);
     ret_call1(tp, test_callback, &ttr);
 }
 
@@ -557,6 +570,69 @@ invalid(struct _tap_parser *tp, int err, const char *fmt, ...)
     return tp->invalid_callback(tp, err, msg);
 }
 
+static void
+init_results_array(tap_parser *tp, long len)
+{
+    void *p;
+    long delta;
+
+    if (len == 0)
+        return;
+
+    /* Increment since test num 0 will never exist. */
+    ++len;
+
+    if (tp->results == NULL) {
+        p = malloc(len * sizeof(enum tap_test_type));
+        if (p == NULL) {
+            invalid(tp, errno, "malloc failed: %s", strerror(errno));
+            return;
+        }
+
+        tp->results = (enum tap_test_type *)p;
+        tp->results_len = len;
+
+        /* TTT_INVALID is 0 by the definition of an enum, so
+         * setting all bytes to 0 initializes everything properly */
+        memset(tp->results, 0, len * sizeof(enum tap_test_type));
+        return;
+    }
+
+    /* don't bother calling realloc if it wont do anything */
+    if (len <= tp->results_len)
+        return;
+
+    /* Use a second pointer. If realloc fails,
+     * the first pointer isn't deallocated */
+    p = realloc(tp->results, len * sizeof(enum tap_test_type));
+    if (p == NULL) {
+        invalid(tp, errno, "realloc failed: %s", strerror(errno));
+        return;
+    }
+
+    tp->results = (enum tap_test_type *)p;
+
+    /* memset the new members */
+    delta = len - tp->results_len;
+    memset(&(tp->results[tp->results_len]), 0, delta * sizeof(enum tap_test_type));
+
+    tp->results_len = len;
+}
+
+static void
+set_results_array(tap_parser *tp, long idx, enum tap_test_type value)
+{
+    /* Results needs to be reallocated in these cases */
+    if (tp->results == NULL || tp->results_len < idx)
+        init_results_array(tp, idx);
+
+    /* Failed to resize results array, just return, no report  */
+    if (tp->results == NULL || tp->results_len < idx)
+        return;
+
+    /* Guarnateed to have idx exist now */
+    tp->results[idx] = value;
+}
 
 /* Get next line of tap, 0 if good, 1 if no more input */
 int

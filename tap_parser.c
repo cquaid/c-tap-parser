@@ -49,8 +49,11 @@ tap_parser_init(tap_parser *tp, size_t buffer_len)
 void
 tap_parser_fini(tap_parser *tp)
 {
-    if (tp->buffer) free(tp->buffer);
-    /* Well... we're done here. */
+    if (tp->buffer)
+        free(tp->buffer);
+
+    if (tp->results)
+        free(tp->results);
 }
 
 /* vim: set ts=4 sw=4 sts=4 expandtab: */

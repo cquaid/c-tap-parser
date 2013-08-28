@@ -23,6 +23,7 @@ enum tap_error_code {
 };
 
 enum tap_test_type {
+    TTT_INVALID,     /* missing tests         */
     TTT_OK,          /* ok ...                */
     TTT_NOT_OK,      /* not ok ...            */
     TTT_TODO,        /* not ok ... # todo ... */
@@ -143,11 +144,15 @@ struct _tap_parser {
     long todo;
     long failed;
     long actual_failed;     /* failed + todo */
-    long actual_passed;     /* passed + skipped */
+    long actual_passed;     /* fassed + skipped */
     long todo_passed;       /* todo's that unexpectedly succeed */
     long parse_errors;      /* number of parse errors found */
-    int skip_all;          /* Skip all tests? */
-    char *skip_all_reason; /* Why all tests are skipped */
+    int skip_all;           /* Skip all tests? */
+    char *skip_all_reason;  /* Why all tests are skipped */
+
+    /* List of test results */
+    enum tap_test_type *results; /* Results list */
+    size_t results_len;          /* Number of currently allocated results */
 };
 
 /* Initialize the parser, returns errno from malloc on failure */
