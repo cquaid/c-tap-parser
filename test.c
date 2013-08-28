@@ -23,6 +23,7 @@ static int plan(tap_parser *tp, long upper, char *skip);
 static int test(tap_parser *tp, tap_test_result *ttr);
 
 /* Helpers */
+static void dump_results_array(tap_parser *tp);
 static void dump_tap_stats(tap_parser *tp);
 static void analyze_results(tap_parser *tp);
 static pid_t exec_test(tap_parser *tp, const char *path);
@@ -110,6 +111,9 @@ main(int argc, char *argv[])
 
     analyze_results(&tp);
 
+    if (verbosity >= 1)
+        dump_results_array(&tp);
+
     tap_parser_fini(&tp);
     close(tp.fd);
     return 0;
@@ -183,6 +187,109 @@ analyze_results(tap_parser *tp)
     }
 
     fflush(stdout);
+}
+
+static void
+dump_results_array(tap_parser *tp)
+{
+    long i, t;
+    long passed, failed;
+    long todo, skipped;
+    long dubious, missing;
+    struct tt {
+        enum tap_test_type type;
+        const char *str;
+    } const static normal[] = {
+        { TTT_OK,     " passed" },
+        { TTT_NOT_OK, " failed" },
+        { TTT_TODO,   "   todo" },
+        { TTT_SKIP,   "skipped" }
+    };
+#define normal_len (sizeof(normal)/sizeof(struct tt))
+
+
+    if (tp->results == NULL || tp->results == 0)
+        return;
+
+    passed = failed = 0;
+    todo = skipped = 0;
+    dubious = missing = 0;
+    for (i = 1; i < tp->results_len; ++ i) {
+        switch (tp->results[i]) {
+        case TTT_OK:
+            ++passed;
+            break;
+        case TTT_NOT_OK:
+            ++failed;
+            break;
+        case TTT_TODO:
+            ++todo;
+            break;
+        case TTT_SKIP:
+            ++skipped;
+            break;
+        case TTT_TODO_PASSED:
+            ++dubious;
+            break;
+        case TTT_SKIP_FAILED:
+            ++dubious;
+            break;
+        case TTT_INVALID:
+            ++missing;
+            break;
+        }
+    }
+
+    for (t = 0; t < normal_len; ++t) {
+        switch (normal[t].type) {
+        case TTT_OK:
+            if (!passed) continue;
+            break;
+        case TTT_NOT_OK:
+            if (!failed) continue;
+            break;
+        case TTT_TODO:
+            if (!todo) continue;
+            break;
+        case TTT_SKIP:
+            if (!skipped) continue;
+            break;
+        case TTT_TODO_PASSED:
+        case TTT_SKIP_FAILED:
+        case TTT_INVALID:
+            continue;
+        }
+        printf("%s: ", normal[t].str);
+        for (i = 1; i < tp->results_len; ++i) {
+            if (tp->results[i] == normal[t].type)
+                printf("%ld, ", i);
+        }
+        putchar('\n');
+    }
+
+    if (dubious) {
+        printf("dubious: ");
+        for (i = 1; i < tp->results_len; ++i) {
+            if (tp->results[i] == TTT_TODO_PASSED ||
+                tp->results[i] == TTT_SKIP_FAILED ) {
+                printf("%ld, ", i);
+            }
+        }
+        putchar('\n');
+    }
+
+    if (missing) {
+        printf("missing: ");
+        for (i = 1; i < tp->results_len; ++i) {
+            if (tp->results[i] == TTT_INVALID)
+                printf("%ld, ", i);
+        }
+        putchar('\n');
+    }
+
+    fflush(stdout);
+
+#undef normal_len
 }
 
 static pid_t
@@ -366,6 +473,9 @@ test(tap_parser *tp, tap_test_result *ttr)
         break;
     case TTT_SKIP_FAILED:
         printf("not ok skip");
+        break;
+    case TTT_INVALID:
+        printf("missing?");
         break;
     }
 
