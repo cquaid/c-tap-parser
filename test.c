@@ -140,10 +140,11 @@ dump_tap_stats(tap_parser *tp)
     printf("    Tap Version: %ld\n", tp->version);
     printf("     Tap Errors: %ld\n", tp->parse_errors);
     printf("         Failed: %ld\n", tp->failed);
-    printf("  Actual Failed: %ld\n", tp->actual_failed);
+    printf("  Actual Failed: %ld\n", tp->failed - (tp->todo_passed + tp->skip_failed));
     printf("         Passed: %ld\n", tp->passed);
-    printf("  Actual Passed: %ld\n", tp->actual_passed);
+    printf("  Actual Passed: %ld\n", tp->passed - tp->skipped);
     printf("        Skipped: %ld\n", tp->skipped);
+    printf("  Dubious Skips: %ld\n", tp->skip_failed);
     printf("          Todos: %ld\n", tp->todo);
     printf("  Dubious Todos: %ld\n", tp->todo_passed);
 

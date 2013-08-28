@@ -143,12 +143,11 @@ struct _tap_parser {
     long passed;
     long todo;
     long failed;
-    long actual_failed;     /* failed + todo */
-    long actual_passed;     /* fassed + skipped */
-    long todo_passed;       /* todo's that unexpectedly succeed */
-    long parse_errors;      /* number of parse errors found */
-    int skip_all;           /* Skip all tests? */
-    char *skip_all_reason;  /* Why all tests are skipped */
+    long todo_passed;      /* todos that unexpectedly succeed */
+    long skip_failed;      /* skips that unexpectedly failed  */
+    long parse_errors;     /* number of parse errors found    */
+    int skip_all;          /* Skip all tests?                 */
+    char *skip_all_reason; /* Why all tests are skipped       */
 
     /* List of test results */
     enum tap_test_type *results; /* Results list */

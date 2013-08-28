@@ -144,28 +144,24 @@ tap_default_test_callback(tap_parser *tp, tap_test_result *ttr)
 
     switch (ttr->type) {
     case TTT_TODO_PASSED:
-        tp->todo++;
+        tp->failed++;
         tp->todo_passed++;
-        tp->passed++;
         return invalid(tp, TE_TODO_PASS, "TODO test passed: %s", tp->buffer);
 
     case TTT_SKIP_FAILED:
         tp->failed++;
-        tp->skipped++;
+        tp->skip_failed++;
         return invalid(tp, TE_SKIP_FAIL, "SKIP test failed: %s", tp->buffer);
 
     case TTT_OK:
         tp->passed++;
-        tp->actual_passed++;
         return 0;
 
     case TTT_NOT_OK:
         tp->failed++;
-        tp->actual_failed++;
         return 0;
 
     case TTT_TODO:
-        tp->failed++;
         tp->todo++;
         return 0;
 
