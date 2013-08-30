@@ -1,6 +1,8 @@
 #include <sys/types.h>
+#include <sys/wait.h>
 
 #include <fcntl.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +24,10 @@ enum analyze_ret {
 static int debug = 0;
 static int verbosity = 0;
 
+static int child_exited = 0;
+static int child_status = 0;
+static pid_t current_child = -1;
+
 /* Callback Functions */
 static int invalid(tap_parser *tp, int err, const char *msg);
 static int unknown(tap_parser *tp);
@@ -37,7 +43,7 @@ static void dump_results_array(const tap_parser *tp);
 static void dump_tap_stats(const tap_parser *tp);
 static int analyze_results(const tap_parser *tp);
 static pid_t exec_test(tap_parser *tp, const char *path);
-
+static void handle_sigchld(int sig);
 
 static void
 usage(FILE *file, const char *name)
@@ -54,7 +60,6 @@ main(int argc, char *argv[])
 {
     int ret;
     int opt;
-    pid_t pid;
     tap_parser tp;
 
     const char *name;
@@ -104,9 +109,12 @@ main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    pid = exec_test(&tp, filename);
+    /* Handle SIGCHLD */
+    signal(SIGCHLD, &handle_sigchld);
+
+    current_child = exec_test(&tp, filename);
     if (verbosity >= 3) {
-        printf("Child pid: %lu\n", (unsigned long)pid);
+        printf("Child pid: %lu\n", (unsigned long)current_child);
         fflush(stdout);
     }
 
@@ -121,6 +129,17 @@ main(int argc, char *argv[])
 
     while (tap_parser_next(&tp) == 0)
         ;
+
+
+    if (!child_exited) {
+        /* Give the child some time, then kill it! */
+        usleep(10);
+        if (!child_exited) {
+            fprintf(stderr, "Killing child (%lu)\n",
+                    (unsigned long)current_child);
+            kill(current_child, SIGKILL);
+        }
+    }
 
     if (debug)
         dump_tap_stats(&tp);
@@ -493,6 +512,19 @@ exec_test(tap_parser *tp, const char *path)
 #undef WRITE_PIPE
 }
 
+/* Signal Handler */
+static void
+handle_sigchld(int sig)
+{
+    pid_t child;
+
+    /* sig unused */
+    (void)sig;
+
+    child = waitpid(current_child, &child_status, WNOHANG);
+    if (child > 0 && WIFEXITED(child_status))
+        child_exited = 1;
+}
 
 /* TAP Functions */
 
