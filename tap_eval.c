@@ -146,12 +146,14 @@ tap_default_test_callback(tap_parser *tp, tap_test_result *ttr)
     case TTT_TODO_PASSED:
         tp->failed++;
         tp->todo_passed++;
-        return invalid(tp, TE_TODO_PASS, "TODO test passed: %s", tp->buffer);
+        invalid(tp, TE_TODO_PASS, "TODO test passed: %s", tp->buffer);
+        return 0;
 
     case TTT_SKIP_FAILED:
         tp->failed++;
         tp->skip_failed++;
-        return invalid(tp, TE_SKIP_FAIL, "SKIP test failed: %s", tp->buffer);
+        invalid(tp, TE_SKIP_FAIL, "SKIP test failed: %s", tp->buffer);
+        return 0;
 
     case TTT_OK:
         tp->passed++;
