@@ -9,7 +9,17 @@
 
 #include "tap_parser.h"
 
+/* Types */
+
+enum analyze_ret {
+    AR_SUCCESS = 0, /* All tests passed     */
+    AR_ABORTED = 1, /* Something went wrong */
+    AR_FAILED  = 2  /* Some tests failed    */
+};
+
+
 /* Globals */
+static int debug = 0;
 static int verbosity = 0;
 
 /* Callback Functions */
@@ -23,9 +33,9 @@ static int plan(tap_parser *tp, long upper, char *skip);
 static int test(tap_parser *tp, tap_test_result *ttr);
 
 /* Helpers */
-static void dump_results_array(tap_parser *tp);
-static void dump_tap_stats(tap_parser *tp);
-static void analyze_results(tap_parser *tp);
+static void dump_results_array(const tap_parser *tp);
+static void dump_tap_stats(const tap_parser *tp);
+static int analyze_results(const tap_parser *tp);
 static pid_t exec_test(tap_parser *tp, const char *path);
 
 
@@ -35,6 +45,7 @@ usage(FILE *file, const char *name)
     fprintf(file, "usage: %s [options] filename\n", name);
     fprintf(file, " -h    display this message\n");
     fprintf(file, " -v    increase verbose output\n");
+    fprintf(file, " -d    debug information, implies -vv\n");
     fflush(file);
 }
 
@@ -51,10 +62,15 @@ main(int argc, char *argv[])
 
     name = argv[0];
 
-    while ((opt = getopt(argc, argv, "vh")) != EOF) {
+    while ((opt = getopt(argc, argv, "vhd")) != EOF) {
         switch (opt) {
         case 'v':
             verbosity++;
+            break;
+        case 'd':
+            debug = 1;
+            if (verbosity < 2)
+                verbosity = 2;
             break;
         case 'h':
             usage(stdout, name);
@@ -106,7 +122,7 @@ main(int argc, char *argv[])
     while (tap_parser_next(&tp) == 0)
         ;
 
-    if (verbosity >= 3)
+    if (debug)
         dump_tap_stats(&tp);
 
     analyze_results(&tp);
@@ -114,13 +130,13 @@ main(int argc, char *argv[])
     if (verbosity >= 1)
         dump_results_array(&tp);
 
-    tap_parser_fini(&tp);
     close(tp.fd);
+    tap_parser_fini(&tp);
     return 0;
 }
 
 static void
-dump_tap_stats(tap_parser *tp)
+dump_tap_stats(const tap_parser *tp)
 {
     putchar('\n');
     if (tp->bailed)
@@ -151,47 +167,183 @@ dump_tap_stats(tap_parser *tp)
     fflush(stdout);
 }
 
-static void
-analyze_results(tap_parser *tp)
+/* This function was ripped from the c-tap-harness */
+static size_t
+print_range(size_t first, size_t last, size_t chars, size_t limit)
 {
-    putchar('\n');
+    size_t i;
+    size_t needed = 0;
 
-    if (tp->bailed)
-        printf("Aborted (Bailed Out)\n");
-    else if (tp->plan == -1) {
-        tp->plan = 0;
-        printf("Aborted (No Plan)\n");
-    }
-    else if (tp->tests_run > tp->plan)
-        printf("Aborted (Extra Tests)\n");
-    else if (tp->tests_run < tp->plan)
-        printf("Aborted (Missing Tests)\n");
+    /* Count radii needed for first number:
+     *
+     * 12 has 2 radii
+     * 256 has 3 radii
+     * etc.
+     **/
+    for (i = first; i > 0; i /= 10)
+        ++needed;
 
-    if (tp->failed > 0)
-        printf("Failed %ld/%ld tests", tp->failed, tp->tests_run);
-    else
-        printf("All tests successful");
-
-    if (tp->skipped > 0) {
-        if (tp->skipped == 1)
-            printf(", 1 test skipped");
-        else
-            printf(", %ld tests skipped", tp->skipped);
+    if (last > first) {
+        /* Count radii needed for last number*/
+        for (i = last; i > 0; i /= 10)
+            ++needed;
+        /* +1 for the '-' */
+        ++needed;
     }
 
-    printf(".\n");
-    if (tp->parse_errors > 0) {
-        printf("%ld TAP error", tp->parse_errors);
-         if (tp->parse_errors != 1)
-                putchar('s');
-        putchar('\n');
+    /* +2 for ', ' */
+    if (chars > 0)
+        needed += 2;
+
+    /* Since we can have a limit, make sure we don't
+     * print too many characters */
+    if (limit > 0 && (chars + needed) > limit) {
+        needed = 0;
+        if (chars <= limit) {
+            if (chars > 0) {
+                printf(", ");
+                needed += 2;
+            }
+            printf("...");
+            needed += 3;
+        }
+    }
+    else {
+        if (chars > 0)
+            printf(", ");
+        if (last > first)
+            printf("%lu-", (unsigned long)first);
+        printf("%lu", (unsigned long)last);
     }
 
-    fflush(stdout);
+    return needed;
 }
 
 static void
-dump_results_array(tap_parser *tp)
+summarize_results(const tap_parser *tp)
+{
+    size_t i, first, last;
+    size_t failed, missing;
+
+    first = last = 0;
+    failed = missing = 0;
+    /* First loop to check if we're missing something */
+    for (i = 1; i < tp->results_len; ++i) {
+        /* Skip anything that's not invalid */
+        if (tp->results[i] != TTT_INVALID)
+            continue;
+
+        if (missing == 0)
+            printf("MISSED ");
+
+        if (first && i == last)
+            ++last;
+        else {
+            if (first)
+                print_range(first, last, missing - 1, 0);
+            ++missing;
+            first = last = i;
+        }
+    }
+
+    /* Final range if the loop ended */
+    if (first)
+        print_range(first, last, missing - 1, 0);
+
+
+
+    first = last = 0;
+    /* Print the Failed tests */
+    for (i = 1; i < tp->results_len; ++i) {
+        /* Skip anything that's not a failure */
+        if (tp->results[i] != TTT_NOT_OK)
+            continue;
+
+        /* seperate the fields if we have more than one */
+        if (missing && !failed)
+            printf("; ");
+
+        if (failed == 0)
+            printf("FAILED ");
+
+        if (first && i == last)
+            ++last;
+        else {
+            if (first)
+                print_range(first, last, failed - 1, 0);
+            ++failed;
+            first = last = i;
+        }
+    }
+
+    /* Final range for failed */
+    if (first)
+        print_range(first, last, failed - 1, 0);
+
+
+    if (missing == 0 && failed == 0) {
+        if (tp->todo_passed || tp->skip_failed)
+            printf("dubious");
+        else
+            printf("ok");
+
+        if (tp->skipped > 0) {
+            if (tp->skipped == 1)
+                printf(" (skipped 1 test)");
+            else
+                printf(" (skipped %ld tests)", tp->skipped);
+        }
+    }
+
+    putchar('\n');
+    fflush(stdout);
+}
+
+static int
+analyze_results(const tap_parser *tp)
+{
+    putchar('\n');
+
+    if (tp->skip_all) {
+        if (tp->skip_all_reason == NULL)
+            printf("skipped\n");
+        else
+            printf("skipped (%s)\n", tp->skip_all_reason);
+        return AR_SUCCESS;
+    }
+
+    if (tp->bailed) {
+        printf("Aborted (Bailed Out)\n");
+        return AR_ABORTED;
+    }
+
+    if (tp->plan == -1) {
+        printf("Aborted (No Plan)\n");
+        return AR_ABORTED;
+    }
+
+    if (tp->tests_run > tp->plan) {
+        printf("Aborted (Extra Tests)\n");
+        return AR_ABORTED;
+    }
+
+#if 0
+    if (tp->tests_run < tp->plan) {
+        printf("Aborted (Missing Tests)\n");
+        return AR_ABORTED;
+    }
+#endif
+
+    summarize_results(tp);
+
+    if (tp->failed)
+        return AR_FAILED;
+
+    return AR_SUCCESS;
+}
+
+static void
+dump_results_array(const tap_parser *tp)
 {
     long i, t;
     long passed, failed;
