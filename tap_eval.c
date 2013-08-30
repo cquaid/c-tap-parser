@@ -612,7 +612,7 @@ init_results_array(tap_parser *tp, long len)
 
     /* memset the new members */
     delta = len - tp->results_len;
-    memset(&(tp->results[tp->results_len]), 0, delta * sizeof(enum tap_test_type));
+    memset(&(tp->results[tp->results_len + 1]), 0, delta * sizeof(enum tap_test_type));
 
     tp->results_len = len;
 }
