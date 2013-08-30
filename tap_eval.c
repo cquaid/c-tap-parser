@@ -401,11 +401,16 @@ parse_test(tap_parser *tp)
 
     buf = end;
 
-    if (test_num == 0 && errno == EINVAL) {
-        /* not starting with a digit?
-         * must be a test description */
-        test_num = tp->test_num + 1;
-        goto rasons;
+    if (test_num == 0) {
+        if (errno == EINVAL) {
+            /* not starting with a digit?
+            * must be a test description */
+            test_num = tp->test_num + 1;
+            goto rasons;
+        }
+
+        /* Can't have a test 0 */
+        return invalid(tp, TE_TEST_INVAL, "Invalid test number 0");
     }
 
     if (test_num == LONG_MAX && errno == ERANGE)
