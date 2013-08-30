@@ -125,14 +125,14 @@ main(int argc, char *argv[])
     if (debug)
         dump_tap_stats(&tp);
 
-    analyze_results(&tp);
+    ret = analyze_results(&tp);
 
     if (verbosity >= 1)
         dump_results_array(&tp);
 
     close(tp.fd);
     tap_parser_fini(&tp);
-    return 0;
+    return ret;
 }
 
 static void
