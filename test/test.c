@@ -13,6 +13,8 @@
 
 #include "test_callbacks.h"
 
+#define TP_BUFFER_SZ 512
+
 /* Types */
 
 enum analyze_ret {
@@ -38,6 +40,7 @@ static void dump_tap_stats(const tap_parser *tp);
 static int analyze_results(const tap_parser *tp);
 static pid_t exec_test(tap_parser *tp, const char *path);
 static void handle_sigchld(int sig);
+static inline int init_parser(tap_parser *tp);
 
 static void
 usage(FILE *file, const char *name)
@@ -96,7 +99,7 @@ main(int argc, char *argv[])
         fflush(stdout);
     }
 
-    ret = tap_parser_init(&tp, 512);
+    ret = init_parser(&tp);
     if (ret != 0) {
         fprintf(stderr, "tap_parser_init(): %s\n", strerror(ret));
         fflush(stderr);
@@ -112,20 +115,9 @@ main(int argc, char *argv[])
         fflush(stdout);
     }
 
-    /* Set the callbacks */
-    tap_parser_set_test_callback(&tp, test_cb);
-    tap_parser_set_plan_callback(&tp, plan_cb);
-    tap_parser_set_pragma_callback(&tp, pragma_cb);
-    tap_parser_set_bailout_callback(&tp, bailout_cb);
-    tap_parser_set_comment_callback(&tp, comment_cb);
-    tap_parser_set_version_callback(&tp, version_cb);
-    tap_parser_set_unknown_callback(&tp, unknown_cb);
-    tap_parser_set_invalid_callback(&tp, invalid_cb);
-
     /* Loop over all output */
     while (tap_parser_next(&tp) == 0)
         ;
-
 
     if (!child_exited) {
         /* Give the child some time, then kill it! */
@@ -525,6 +517,33 @@ handle_sigchld(int sig)
     child = waitpid(current_child, &child_status, WNOHANG);
     if (child > 0 && WIFEXITED(child_status))
         child_exited = 1;
+}
+
+/* Initialize all the parser and set the callbacks.
+ *
+ * This may change in the future.
+ * When test list support is added this will
+ * probably be used to re-initialize the parser
+ * after each test.
+ **/
+static inline int
+init_parser(tap_parser *tp)
+{
+    ret = tap_parser_init(&tp, TP_BUFFER_SZ);
+    if (ret != 0)
+        return ret;
+
+    /* Set the callbacks */
+    tap_parser_set_test_callback(tp, test_cb);
+    tap_parser_set_plan_callback(&tp, plan_cb);
+    tap_parser_set_pragma_callback(&tp, pragma_cb);
+    tap_parser_set_bailout_callback(&tp, bailout_cb);
+    tap_parser_set_comment_callback(&tp, comment_cb);
+    tap_parser_set_version_callback(&tp, version_cb);
+    tap_parser_set_unknown_callback(&tp, unknown_cb);
+    tap_parser_set_invalid_callback(&tp, invalid_cb);
+
+    return 0;
 }
 
 /* vim: set ts=4 sw=4 sws=4 expandtab: */
