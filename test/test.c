@@ -137,12 +137,17 @@ main(int argc, char *argv[])
         }
     }
 
+    if (WIFEXITED(child_status))
+        printf("Test Exit Status: %d\n", WEXITSTATUS(child_status));
+    else if (WIFSIGNALED(child_status))
+        printf("Child killed by signal %d\n", WTERMSIG(child_status));
+
     if (debug)
         dump_tap_stats(&tp);
 
     ret = analyze_results(&tp);
 
-    if (verbosity >= 1)
+    if (verbosity >= 2)
         dump_results_array(&tp);
 
     close(tp.fd);
