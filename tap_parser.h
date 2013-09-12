@@ -133,6 +133,11 @@ struct _tap_parser {
     int fd;
     int blocking_time;
 
+    /* Arbitrary Pointer for external use.
+     * This is here for the user,
+     * we don't reference it. */
+    void *arbitrary;
+
     /* TAP Specific Members */
     int bailed;   /* have we bailed? */
     long version;
