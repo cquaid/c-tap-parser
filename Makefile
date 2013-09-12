@@ -27,7 +27,7 @@ testprog: lib
 
 .PHONY: test
 test: testprog
-	@testprog/test
+	@test/test
 
 .PHONY: clean
 clean:
