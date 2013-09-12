@@ -46,6 +46,44 @@ tap_parser_init(tap_parser *tp, size_t buffer_len)
     return 0;
 }
 
+int
+tap_parser_reset(tap_parser *tp)
+{
+    char *buffer;
+    size_t buffer_len;
+
+    if (tp->buffer == NULL) {
+        /* No buffer? re-init */
+        tap_parser_fini(tp);
+        return tap_parser_init(tp, DEFAULT_BUTTER_LEN);
+    }
+
+    /* Store the buffer addr so we don't
+     * have to realloc it. */
+    buffer = tp->buffer;
+    buffer_len = tp->buffer_len;
+
+    /* Should we carry this over? */
+    if (tp->results)
+        free(tp->results);
+
+    memset(tp, 0, sizeof(*tp));
+
+    tp->fd = -1;
+    tp->plan = -1;
+
+    tp->stirct = 1;
+    tp->first_line = 1;
+
+    tp->version = DEFAULT_TAP_VERSION;
+    tp->blocking_time = DEFAULT_BLOCKING_TIME;
+
+    tp->buffer = buffer;
+    tp->buffer_len = buffer_len;
+
+    return 0;
+}
+
 void
 tap_parser_fini(tap_parser *tp)
 {

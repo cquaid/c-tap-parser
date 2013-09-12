@@ -162,6 +162,9 @@ struct _tap_parser {
 /* Initialize the parser, returns errno from malloc on failure */
 extern int tap_parser_init(tap_parser *tp, size_t buffer_len);
 
+/* Re-init the parser, keeps the same buffer */
+extern int tap_parser_reset(tap_parser *tp);
+
 /* Cleanup... */
 extern void tap_parser_fini(tap_parser *tp);
 
