@@ -11,6 +11,7 @@
 
 #include "tap_parser.h"
 
+#include "test_log.h"
 #include "test_callbacks.h"
 
 #define TP_BUFFER_SZ 512
@@ -46,9 +47,11 @@ static void
 usage(FILE *file, const char *name)
 {
     fprintf(file, "usage: %s [options] filename\n", name);
-    fprintf(file, " -h    display this message\n");
-    fprintf(file, " -v    increase verbose output\n");
-    fprintf(file, " -d    debug information, implies -vv\n");
+    fprintf(file, " -h       display this message\n");
+    fprintf(file, " -v       increase verbose output\n");
+    fprintf(file, " -d       debug information, implies -vv\n");
+    fprintf(file, " -L file  log the test output to a file\n");
+    fprintf(file, " -a       open the log with append\n");
     fflush(file);
 }
 
@@ -57,14 +60,16 @@ main(int argc, char *argv[])
 {
     int ret;
     int opt;
+    int append = 0;
     tap_parser tp;
 
     const char *name;
-    const char *filename;
+    const char *logname = NULL;
+    const char *filename = NULL;
 
     name = argv[0];
 
-    while ((opt = getopt(argc, argv, "vhd")) != EOF) {
+    while ((opt = getopt(argc, argv, "vhdaL:")) != EOF) {
         switch (opt) {
         case 'v':
             verbosity++;
@@ -73,6 +78,12 @@ main(int argc, char *argv[])
             debug = 1;
             if (verbosity < 2)
                 verbosity = 2;
+            break;
+        case 'a':
+            append = 1;
+            break;
+        case 'L':
+            logname = optarg;
             break;
         case 'h':
             usage(stdout, name);
@@ -98,6 +109,17 @@ main(int argc, char *argv[])
         printf("Running %s\n", filename);
         fflush(stdout);
     }
+
+
+    if (logname != NULL) {
+        if (log_open(logname, append)) {
+            fprintf(stderr, "Failed to open %s: %s\n",
+                    logname, strerror(errno));
+            fflush(stderr);
+            exit(EXIT_FAILURE);
+        }
+    }
+
 
     ret = init_parser(&tp);
     if (ret != 0) {
@@ -491,6 +513,9 @@ exec_test(tap_parser *tp, const char *path)
         close(pipes[READ_PIPE]);
         close(pipes[WRITE_PIPE]);
 
+        /* log gets cloned for the child, close it */
+        log_close();
+
         if (execl(path, path, (char *)NULL) == -1)
             exit(EXIT_FAILURE);
     }
@@ -542,6 +567,7 @@ init_parser(tap_parser *tp)
     tap_parser_set_version_callback(&tp, version_cb);
     tap_parser_set_unknown_callback(&tp, unknown_cb);
     tap_parser_set_invalid_callback(&tp, invalid_cb);
+    tap_parser_set_preparse_callback(&tp, preparse_cb);
 
     return 0;
 }

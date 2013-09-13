@@ -1,10 +1,11 @@
 #ifndef _H_TEST_CALLBACKS
 #define _H_TEST_CALLBACKS
 
-#include "tap_parser.h"
-
 #include <stdio.h>
 #include <string.h>
+
+#include "tap_parser.h"
+#include "tap_log.h"
 
 /* From test.c */
 extern int verbosity;
@@ -171,6 +172,12 @@ test_cb(tap_parser *tp, tap_test_result *ttr)
     fflush(stdout);
 
     return tap_default_test_callback(tp, ttr);
+}
+
+static void
+preparse_cb(tap_parser *tp)
+{
+    log_write("%s", tp->buffer);
 }
 
 #endif /* _H_TEST_CALLBACKS */
