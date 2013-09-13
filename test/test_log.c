@@ -9,7 +9,7 @@ static FILE* logfile = NULL;
 int
 log_open(const char *filename, int append)
 {
-	if (log_file != NULL)
+	if (logfile != NULL)
 		log_close();
 
 	if (strcmp(filename, "stdout") == 0) {

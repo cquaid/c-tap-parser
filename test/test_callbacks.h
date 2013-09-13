@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "tap_parser.h"
-#include "tap_log.h"
+#include "test_log.h"
 
 /* From test.c */
 extern int verbosity;

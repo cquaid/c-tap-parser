@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -554,20 +555,22 @@ handle_sigchld(int sig)
 static inline int
 init_parser(tap_parser *tp)
 {
-    ret = tap_parser_init(&tp, TP_BUFFER_SZ);
+    int ret;
+
+    ret = tap_parser_init(tp, TP_BUFFER_SZ);
     if (ret != 0)
         return ret;
 
     /* Set the callbacks */
     tap_parser_set_test_callback(tp, test_cb);
-    tap_parser_set_plan_callback(&tp, plan_cb);
-    tap_parser_set_pragma_callback(&tp, pragma_cb);
-    tap_parser_set_bailout_callback(&tp, bailout_cb);
-    tap_parser_set_comment_callback(&tp, comment_cb);
-    tap_parser_set_version_callback(&tp, version_cb);
-    tap_parser_set_unknown_callback(&tp, unknown_cb);
-    tap_parser_set_invalid_callback(&tp, invalid_cb);
-    tap_parser_set_preparse_callback(&tp, preparse_cb);
+    tap_parser_set_plan_callback(tp, plan_cb);
+    tap_parser_set_pragma_callback(tp, pragma_cb);
+    tap_parser_set_bailout_callback(tp, bailout_cb);
+    tap_parser_set_comment_callback(tp, comment_cb);
+    tap_parser_set_version_callback(tp, version_cb);
+    tap_parser_set_unknown_callback(tp, unknown_cb);
+    tap_parser_set_invalid_callback(tp, invalid_cb);
+    tap_parser_set_preparse_callback(tp, preparse_cb);
 
     return 0;
 }

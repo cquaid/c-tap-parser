@@ -194,7 +194,7 @@ extern int tap_default_test_callback(tap_parser *tp, tap_test_result *ttr);
 
 /* macros for setting callbacks */
 #define tap_parser_set_callback(tp, name, fn) do { (tp)->name##_callback = fn; } while(0)
-#define tap_parser_set_preparse_callback(tp, fn) tap_parser_Set_callback(tp, preparse, fn)
+#define tap_parser_set_preparse_callback(tp, fn) tap_parser_set_callback(tp, preparse, fn)
 #define tap_parser_set_invalid_callback(tp, fn) tap_parser_set_callback(tp, invalid, fn)
 #define tap_parser_set_unknown_callback(tp, fn) tap_parser_set_callback(tp, unknown, fn)
 #define tap_parser_set_version_callback(tp, fn) tap_parser_set_callback(tp, version, fn)

@@ -55,7 +55,7 @@ tap_parser_reset(tap_parser *tp)
     if (tp->buffer == NULL) {
         /* No buffer? re-init */
         tap_parser_fini(tp);
-        return tap_parser_init(tp, DEFAULT_BUTTER_LEN);
+        return tap_parser_init(tp, DEFAULT_BUFFER_LEN);
     }
 
     /* Store the buffer addr so we don't
@@ -72,7 +72,7 @@ tap_parser_reset(tap_parser *tp)
     tp->fd = -1;
     tp->plan = -1;
 
-    tp->stirct = 1;
+    tp->strict = 1;
     tp->first_line = 1;
 
     tp->version = DEFAULT_TAP_VERSION;
