@@ -582,59 +582,74 @@ init_results_array(tap_parser *tp, long len)
     if (len == 0)
         return;
 
+    if (tp->tr == NULL) {
+        tp->tr = (tap_results *)malloc(sizeof(tap_results));
+        if (tp->tr == NULL) {
+            invalid(tp, errno, "malloc failed: %s", strerror(errno));
+            return;
+        }
+        memset(tp->tr, 0, sizeof(tap_results));
+    }
+
     /* Increment since test num 0 will never exist. */
     ++len;
 
-    if (tp->results == NULL) {
+    if (tp->tr->results == NULL) {
         p = malloc(len * sizeof(enum tap_test_type));
         if (p == NULL) {
             invalid(tp, errno, "malloc failed: %s", strerror(errno));
             return;
         }
 
-        tp->results = (enum tap_test_type *)p;
-        tp->results_len = len;
+        tp->tr->results = (enum tap_test_type *)p;
+        tp->tr->results_len = len;
 
         /* TTT_INVALID is 0 by the definition of an enum, so
          * setting all bytes to 0 initializes everything properly */
-        memset(tp->results, 0, len * sizeof(enum tap_test_type));
+        memset(tp->tr->results, 0, len * sizeof(enum tap_test_type));
         return;
     }
 
     /* don't bother calling realloc if it wont do anything */
-    if (len <= tp->results_len)
+    if (len <= tp->tr->results_len)
         return;
 
     /* Use a second pointer. If realloc fails,
      * the first pointer isn't deallocated */
-    p = realloc(tp->results, len * sizeof(enum tap_test_type));
+    p = realloc(tp->tr->results, len * sizeof(enum tap_test_type));
     if (p == NULL) {
         invalid(tp, errno, "realloc failed: %s", strerror(errno));
         return;
     }
 
-    tp->results = (enum tap_test_type *)p;
+    tp->tr->results = (enum tap_test_type *)p;
 
     /* memset the new members */
-    delta = len - tp->results_len;
-    memset(&(tp->results[tp->results_len + 1]), 0, delta * sizeof(enum tap_test_type));
+    delta = len - tp->tr->results_len;
+    memset(&(tp->tr->results[tp->tr->results_len + 1]), 0,
+           delta * sizeof(enum tap_test_type));
 
-    tp->results_len = len;
+    tp->tr->results_len = len;
 }
 
 static void
 set_results_array(tap_parser *tp, long idx, enum tap_test_type value)
 {
+
     /* Results needs to be reallocated in these cases */
-    if (tp->results == NULL || tp->results_len < idx)
+    if (tp->tr == NULL || tp->tr->results == NULL
+            || tp->tr->results_len < idx) {
         init_results_array(tp, idx);
+    }
 
     /* Failed to resize results array, just return, no report  */
-    if (tp->results == NULL || tp->results_len < idx)
+    if (tp->tr == NULL || tp->tr->results == NULL
+            || tp->tr->results_len < idx) {
         return;
+    }
 
     /* Guarnateed to have idx exist now */
-    tp->results[idx] = value;
+    tp->tr->results[idx] = value;
 }
 
 /* Get next line of tap, 0 if good, 1 if no more input */

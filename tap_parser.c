@@ -19,6 +19,14 @@ tap_parser_init(tap_parser *tp, size_t buffer_len)
      * Non-strict mode isn't supported anyway */
     tp->strict = 1;
 
+    /* Need to allocate a new tap_results struct
+     * to store everything in. */
+    tp->tr= (tap_results *)malloc(sizeof(tap_results));
+    if (tp->tr == NULL)
+        return errno;
+
+    memset(tp->tr, 0, sizeof(tap_results));
+
     /* TAP 12 is the default unless input
      * starts with "TAP version 13" */
     tp->version = DEFAULT_TAP_VERSION;
@@ -38,8 +46,10 @@ tap_parser_init(tap_parser *tp, size_t buffer_len)
         tp->buffer_len = buffer_len;
 
     tp->buffer = (char *)malloc(tp->buffer_len);
-    if (tp->buffer == NULL)
+    if (tp->buffer == NULL) {
+        tap_results_fini(tp->tr);
         return errno;
+    }
 
     /* don't bother memsetting the buffer, waste of time */
 
@@ -51,8 +61,14 @@ tap_parser_reset(tap_parser *tp)
 {
     char *buffer;
     size_t buffer_len;
+    tap_results *results;
 
     if (tp->buffer == NULL) {
+        /* This case doesn't usually happen
+         * But if the results aren't stolen free them */
+        if (tp->tr != NULL)
+            tap_results_fini(tp->tr);
+
         /* No buffer? re-init */
         tap_parser_fini(tp);
         return tap_parser_init(tp, DEFAULT_BUFFER_LEN);
@@ -63,11 +79,17 @@ tap_parser_reset(tap_parser *tp)
     buffer = tp->buffer;
     buffer_len = tp->buffer_len;
 
-    /* Should we carry this over? */
-    if (tp->results)
-        free(tp->results);
+    /* If it's not stolen wipe it out */
+    if (tp->tr) {
+        if (tp->tr->results)
+            free(tp->tr->results);
+        memset(tp->tr, 0, sizeof(tap_results));
+        results = tp->tr;
+    }
 
     memset(tp, 0, sizeof(*tp));
+
+    tp->tr = results;
 
     tp->fd = -1;
     tp->plan = -1;
@@ -90,8 +112,32 @@ tap_parser_fini(tap_parser *tp)
     if (tp->buffer)
         free(tp->buffer);
 
-    if (tp->results)
-        free(tp->results);
+    if (tp->tr)
+        tap_results_fini(tp->tr);
 }
+
+tap_results*
+tap_parser_steal_results(tap_parser *tp)
+{
+    tap_results *ret;
+
+    ret = tp->tr;
+    tp->tr = NULL;
+
+    return ret;
+}
+
+void
+tap_results_fini(tap_results *tr)
+{
+    if (tr == NULL)
+        return;
+
+    if (tr->results != NULL)
+        free(tr->results);
+
+    free(tr);
+}
+
 
 /* vim: set ts=4 sw=4 sts=4 expandtab: */

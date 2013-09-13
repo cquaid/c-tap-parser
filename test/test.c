@@ -249,9 +249,9 @@ summarize_results(const tap_parser *tp)
     first = last = 0;
     failed = missing = 0;
     /* First loop to check if we're missing something */
-    for (i = 1; i < tp->results_len; ++i) {
+    for (i = 1; i < tp->tr->results_len; ++i) {
         /* Skip anything that's not invalid */
-        if (tp->results[i] != TTT_INVALID)
+        if (tp->tr->results[i] != TTT_INVALID)
             continue;
 
         if (missing == 0)
@@ -275,9 +275,9 @@ summarize_results(const tap_parser *tp)
 
     first = last = 0;
     /* Print the Failed tests */
-    for (i = 1; i < tp->results_len; ++i) {
+    for (i = 1; i < tp->tr->results_len; ++i) {
         /* Skip anything that's not a failure */
-        if (tp->results[i] != TTT_NOT_OK)
+        if (tp->tr->results[i] != TTT_NOT_OK)
             continue;
 
         /* seperate the fields if we have more than one */
@@ -382,14 +382,17 @@ dump_results_array(const tap_parser *tp)
 #define normal_len (sizeof(normal)/sizeof(struct tt))
 
 
-    if (tp->results == NULL || tp->results == 0)
+    if (tp->tr == NULL)
+        return;
+
+    if (tp->tr->results == NULL || tp->tr->results_len == 0)
         return;
 
     passed = failed = 0;
     todo = skipped = 0;
     dubious = missing = 0;
-    for (i = 1; i < tp->results_len; ++ i) {
-        switch (tp->results[i]) {
+    for (i = 1; i < tp->tr->results_len; ++ i) {
+        switch (tp->tr->results[i]) {
         case TTT_OK:
             ++passed;
             break;
@@ -434,8 +437,8 @@ dump_results_array(const tap_parser *tp)
             continue;
         }
         printf("%s: ", normal[t].str);
-        for (i = 1; i < tp->results_len; ++i) {
-            if (tp->results[i] == normal[t].type)
+        for (i = 1; i < tp->tr->results_len; ++i) {
+            if (tp->tr->results[i] == normal[t].type)
                 printf("%ld, ", i);
         }
         putchar('\n');
@@ -443,9 +446,9 @@ dump_results_array(const tap_parser *tp)
 
     if (dubious) {
         printf("dubious: ");
-        for (i = 1; i < tp->results_len; ++i) {
-            if (tp->results[i] == TTT_TODO_PASSED ||
-                tp->results[i] == TTT_SKIP_FAILED ) {
+        for (i = 1; i < tp->tr->results_len; ++i) {
+            if (tp->tr->results[i] == TTT_TODO_PASSED ||
+                tp->tr->results[i] == TTT_SKIP_FAILED ) {
                 printf("%ld, ", i);
             }
         }
@@ -454,8 +457,8 @@ dump_results_array(const tap_parser *tp)
 
     if (missing) {
         printf("missing: ");
-        for (i = 1; i < tp->results_len; ++i) {
-            if (tp->results[i] == TTT_INVALID)
+        for (i = 1; i < tp->tr->results_len; ++i) {
+            if (tp->tr->results[i] == TTT_INVALID)
                 printf("%ld, ", i);
         }
         putchar('\n');

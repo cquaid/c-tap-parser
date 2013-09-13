@@ -40,6 +40,14 @@ typedef struct {
     char *directive;
 } tap_test_result;
 
+
+/* The results array from running a test script */
+typedef struct {
+    /* List of test results */
+    enum tap_test_type *results; /* Results list */
+    size_t results_len;          /* Number of currently allocated results */
+} tap_results;
+
 struct _tap_parser;
 typedef struct _tap_parser tap_parser;
 
@@ -150,24 +158,24 @@ struct _tap_parser {
     void *arbitrary;
 
     /* TAP Specific Members */
-    int bailed;   /* have we bailed? */
+    int bailed; /* Have we bailed out? */
     long version;
     long plan;
     long test_num;
+
     long tests_run;
     long skipped;
     long passed;
     long todo;
     long failed;
-    long todo_passed;      /* todos that unexpectedly succeed */
-    long skip_failed;      /* skips that unexpectedly failed  */
-    long parse_errors;     /* number of parse errors found    */
-    int skip_all;          /* Skip all tests?                 */
-    char *skip_all_reason; /* Why all tests are skipped       */
+    long todo_passed;  /* todos that unexpectedly passed */
+    long skip_failed;  /* skips that unexpectedly failed */
+    long parse_errors; /* Number of parse errors         */
 
-    /* List of test results */
-    enum tap_test_type *results; /* Results list */
-    size_t results_len;          /* Number of currently allocated results */
+    int skip_all;          /* Did we skip all the tests? */
+    char *skip_all_reason; /* Why all tests are skipped. */
+
+    tap_results *tr;
 };
 
 /* Initialize the parser, returns errno from malloc on failure */
@@ -178,6 +186,13 @@ extern int tap_parser_reset(tap_parser *tp);
 
 /* Cleanup... */
 extern void tap_parser_fini(tap_parser *tp);
+
+/* Detach and return the results struct from the tap_parser */
+extern tap_results* tap_parser_steal_results(tap_parser *tp);
+
+/* Cleanup a tap_results struct.
+ * Since tap_results are always pointers, this will free(tr) */
+extern void tap_results_fini(tap_results *tr);
 
 /* Get next line of tap, 0 if good, 1 if no more input */
 extern int tap_parser_next(tap_parser *tp);
