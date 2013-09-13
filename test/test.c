@@ -1,4 +1,5 @@
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include <errno.h>
@@ -43,6 +44,8 @@ static int analyze_results(const tap_parser *tp);
 static pid_t exec_test(tap_parser *tp, const char *path);
 static void handle_sigchld(int sig);
 static inline int init_parser(tap_parser *tp);
+static void run_list(tap_parser *tp, const char *list);
+static void run_single(tap_parser *tp, const char *test);
 
 static void
 usage(FILE *file, const char *name)
@@ -122,7 +125,9 @@ main(int argc, char *argv[])
     }
 
 
-    ret = init_parser(&tp);
+    /* The parser has to be initialized before a
+     * tap_parser_reset call */
+    ret = tap_parser_init(&tp, TP_BUFFER_SZ);
     if (ret != 0) {
         fprintf(stderr, "tap_parser_init(): %s\n", strerror(ret));
         fflush(stderr);
@@ -132,30 +137,12 @@ main(int argc, char *argv[])
     /* Handle SIGCHLD */
     signal(SIGCHLD, &handle_sigchld);
 
-    current_child = exec_test(&tp, filename);
+    /* run the test */
+    run_single(&tp, filename);
     if (verbosity >= 3) {
         printf("Child pid: %lu\n", (unsigned long)current_child);
         fflush(stdout);
     }
-
-    /* Loop over all output */
-    while (tap_parser_next(&tp) == 0)
-        ;
-
-    if (!child_exited) {
-        /* Give the child some time, then kill it! */
-        usleep(10);
-        if (!child_exited) {
-            fprintf(stderr, "Killing child (%lu)\n",
-                    (unsigned long)current_child);
-            kill(current_child, SIGKILL);
-        }
-    }
-
-    if (WIFEXITED(child_status))
-        printf("Test Exit Status: %d\n", WEXITSTATUS(child_status));
-    else if (WIFSIGNALED(child_status))
-        printf("Child killed by signal %d\n", WTERMSIG(child_status));
 
     if (debug)
         dump_tap_stats(&tp);
@@ -165,7 +152,6 @@ main(int argc, char *argv[])
     if (verbosity >= 2)
         dump_results_array(&tp);
 
-    close(tp.fd);
     tap_parser_fini(&tp);
     return ret;
 }
@@ -545,19 +531,14 @@ handle_sigchld(int sig)
         child_exited = 1;
 }
 
-/* Initialize all the parser and set the callbacks.
- *
- * This may change in the future.
- * When test list support is added this will
- * probably be used to re-initialize the parser
- * after each test.
- **/
+/* Initialize all the parser and set the callbacks. */
 static inline int
 init_parser(tap_parser *tp)
 {
     int ret;
 
-    ret = tap_parser_init(tp, TP_BUFFER_SZ);
+    /* reset so we don't wipe out the buffer */
+    ret = tap_parser_reset(tp);
     if (ret != 0)
         return ret;
 
@@ -573,6 +554,58 @@ init_parser(tap_parser *tp)
     tap_parser_set_preparse_callback(tp, preparse_cb);
 
     return 0;
+}
+
+static void
+run_list(tap_parser *tp, const char *list)
+{
+    (void)tp;
+    (void)run_list;
+}
+
+static void
+run_single(tap_parser *tp, const char *test)
+{
+    int ret;
+
+    ret = init_parser(tp);
+    if (ret != 0) {
+        /* Failing to init the parser is fatal. */
+        fprintf(stderr, "tap_parser_init(): %s\n", strerror(ret));
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    child_exited = 0;
+    child_status = 0;
+    current_child = -1;
+
+    /* Kick off the test */
+    current_child = exec_test(tp, test);
+
+    /* Loop over all output */
+    while (tap_parser_next(tp) == 0)
+        ;
+
+    if (!child_exited) {
+        /* Give teh child some time, then kill it! */
+        usleep(10);
+        if (!child_exited) {
+            fprintf(stderr, "Killing child (%lu)\n",
+                    (unsigned long)current_child);
+            kill(current_child, SIGKILL);
+        }
+    }
+
+#if 0
+    if (WIFEXITED(child_status))
+        WEXITSTATUS(child_status)
+    else if (WIFSIGNALED(child_status))
+        killed by WTERMSIG(child_status)
+#endif
+
+    /* Close the fd */
+    close(tp->fd);
 }
 
 /* vim: set ts=4 sw=4 sws=4 expandtab: */
