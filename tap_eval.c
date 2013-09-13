@@ -644,6 +644,9 @@ tap_parser_next(tap_parser *tp)
     if (get_line(tp) == -1)
         return 1;
 
+    if (tp->preparse_callback != NULL)
+        tp->preparse_callback(tp);
+
     return tap_eval(tp);
 }
 

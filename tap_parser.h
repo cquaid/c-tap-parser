@@ -110,6 +110,15 @@ typedef int(*tap_unknown_callback)(tap_parser*);
  */
 typedef int(*tap_invalid_callback)(tap_parser*, int, const char*);
 
+/* preparse callback is called before the TAP parsing begins.
+ * This is the place to do any sort of logging.
+ *
+ * The unmodified/raw line is in tp->buffer
+ *
+ * There is no default function for this.
+ */
+typedef void(*tap_preparse_callback)(tap_parser*);
+
 struct _tap_parser {
     /* Parser Callbacks */
     tap_test_callback test_callback;
@@ -122,6 +131,8 @@ struct _tap_parser {
     tap_unknown_callback unknown_callback;
     /* when a parse error is thrown, go here */
     tap_invalid_callback invalid_callback;
+    /* Before any parsing is done */
+    tap_preparse_callback preparse_callback;
 
     /* Parser Storage */
     int first_line;
@@ -183,6 +194,7 @@ extern int tap_default_test_callback(tap_parser *tp, tap_test_result *ttr);
 
 /* macros for setting callbacks */
 #define tap_parser_set_callback(tp, name, fn) do { (tp)->name##_callback = fn; } while(0)
+#define tap_parser_set_preparse_callback(tp, fn) tap_parser_Set_callback(tp, preparse, fn)
 #define tap_parser_set_invalid_callback(tp, fn) tap_parser_set_callback(tp, invalid, fn)
 #define tap_parser_set_unknown_callback(tp, fn) tap_parser_set_callback(tp, unknown, fn)
 #define tap_parser_set_version_callback(tp, fn) tap_parser_set_callback(tp, version, fn)
