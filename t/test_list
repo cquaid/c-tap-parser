@@ -1,0 +1,16 @@
+bail_quiet
+bail
+fail
+todo
+zero
+plan_tests/less_tests
+plan_tests/more_tests
+plan_tests/no_plan
+plan_tests/plan_last
+plan_tests/plan_long
+plan_tests/plan_multi
+skip_tests/skip_all_bad
+skip_tests/skip_all_late
+skip_tests/skip_all_no_reason
+skip_tests/skip_all
+skip_tests/skip
