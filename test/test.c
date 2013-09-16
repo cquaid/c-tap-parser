@@ -714,8 +714,8 @@ find_test(const char *base)
     return NULL;
 }
 
-static int
-run_list(tap_parser *tp, const char *list)
+static inline void
+make_test_list(test_results *tsr, const char *list)
 {
     FILE *file;
 
@@ -726,19 +726,15 @@ run_list(tap_parser *tp, const char *list)
     char buffer[TP_BUFFER_SZ];
 
     ttr_node *node;
-    test_results tsr;
-
 
     file = fopen(list, "r");
     if (file == NULL)
         die(errno, "Cannot open list %s", list);
 
-    /* Initialize the test results */
-    test_results_init(&tsr);
-
     line = 0;
     while (fgets(buffer, TP_BUFFER_SZ-1, file)) {
         ++line;
+
         /* Skip comments */
         if (buffer[0] == '#')
             continue;
@@ -757,25 +753,63 @@ run_list(tap_parser *tp, const char *list)
 
         /* Set up the new node */
         node = ttr_node_new();
+        node->path = test;
         node->file = strdup(buffer);
         if (node->file == NULL)
-            die(errno, "strdup(list)");
-        node->path = test;
+            die(errno, "strdup(test_name)");
 
-        /* Add the node to the results list */
-        test_results_push(&tsr, node);
+        test_results_push(tsr, node);
+    }
 
-        if (verbosity >= 1)
+    fclose(file);
+}
+
+static int
+run_list(tap_parser *tp, const char *list)
+{
+    size_t length;
+    size_t longest;
+
+    ttr_node *node;
+    test_results tsr;
+
+    /* Initialize the test results */
+    test_results_init(&tsr);
+
+    /* Grap the test list */
+    make_test_list(&tsr, list);
+
+    /* Find the longest test name */
+    longest = 0;
+    node = tsr.root;
+    while (node != NULL) {
+        length = strlen(node->file);
+        if (length > longest)
+            longest = length;
+        node = node->next;
+    }
+
+    /* Run the tests */
+    node = tsr.root;
+    while (node != NULL) {
+        if (verbosity >= 1) {
             printf("%s...", node->file);
+            length = longest - strlen(node->file);
+            while (length--)
+                putchar('.');
+        }
 
         /* Run the test */
-        node->status = run_single(tp, test);
+        node->status = run_single(tp, node->path);
 
         /* Detatch and store off the test results */
         node->tr = tap_parser_steal_results(tp);
         node->child_status = child_status;
 
         cook_test_results(&tsr, node, tp);
+        fflush(stdout);
+
+        node = node->next;
     }
 
     /* Cleanup test results */
