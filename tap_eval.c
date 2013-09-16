@@ -517,7 +517,7 @@ tap_eval(tap_parser *tp)
     if (bail != NULL) {
         bail += sizeof("Bail out!") - 1;
         bail = strip(bail);
-        if (*bail != '\0') {
+        if (*bail != '\0')
             ret_call1(tp, bailout_callback, chomp(bail));
         else
             ret_call1(tp, bailout_callback, NULL);
