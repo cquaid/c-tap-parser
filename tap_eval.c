@@ -344,10 +344,9 @@ parse_plan(tap_parser *tp)
 
     buf = strip(buf + 4);
 
-    /* if there isn't a skip reason, just give it the
-     * buffer at the NUL character (e.g. give it the empty string) */
+    /* if there isn't a skip reason, give it NULL */
     if (*buf == '\0')
-        ret_call2(tp, plan_callback, upper, buf);
+        ret_call2(tp, plan_callback, upper, NULL);
 
     ret_call2(tp, plan_callback, upper, chomp(buf));
 }
