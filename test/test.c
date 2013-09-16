@@ -14,6 +14,8 @@
 #include "tap_parser.h"
 
 #include "test_log.h"
+#include "test_utils.h"
+#include "test_results.h"
 #include "test_callbacks.h"
 
 #define TP_BUFFER_SZ 512
@@ -26,7 +28,6 @@ enum analyze_ret {
     AR_FAILED  = 2  /* Some tests failed    */
 };
 
-
 /* Globals */
 static int debug = 0;
 
@@ -37,25 +38,37 @@ static int child_exited = 0;
 static int child_status = 0;
 static pid_t current_child = -1;
 
+static const char *build = NULL;
+static const char *source = NULL;
+
 /* Helpers */
+#if 0
 static void dump_results_array(const tap_results *tr);
 static void dump_tap_stats(const tap_parser *tp);
 static int analyze_results(const tap_parser *tp);
+#endif
 static pid_t exec_test(tap_parser *tp, const char *path);
+static void unset_envars(void);
 static void handle_sigchld(int sig);
 static inline int init_parser(tap_parser *tp);
-static void run_list(tap_parser *tp, const char *list);
-static void run_single(tap_parser *tp, const char *test);
+static inline char* find_test(const char *base);
+static int run_list(tap_parser *tp, const char *list);
+static int run_single(tap_parser *tp, const char *test);
+static inline void cook_test_results(test_results *tsr, ttr_node *node, tap_parser *tp);
 
 static void
 usage(FILE *file, const char *name)
 {
     fprintf(file, "usage: %s [options] filename\n", name);
-    fprintf(file, " -h       display this message\n");
-    fprintf(file, " -v       increase verbose output\n");
-    fprintf(file, " -d       debug information, implies -vv\n");
-    fprintf(file, " -L file  log the test output to a file\n");
-    fprintf(file, " -a       open the log with append\n");
+    fprintf(file, "       %s [options] -l filename\n", name);
+    fprintf(file, " -h            display this message\n");
+    fprintf(file, " -v            increase verbose output\n");
+    fprintf(file, " -d            debug information, implies -vv\n");
+    fprintf(file, " -L file       log the test output to a file\n");
+    fprintf(file, " -a            open the log with append\n");
+    fprintf(file, " -l            filename is a list of tests to run\n");
+    fprintf(file, " -s src_dir    test source directory\n");
+    fprintf(file, " -b build_dir  test build directory\n");
     fflush(file);
 }
 
@@ -64,6 +77,7 @@ main(int argc, char *argv[])
 {
     int ret;
     int opt;
+    int list = 0;
     int append = 0;
     tap_parser tp;
 
@@ -73,7 +87,7 @@ main(int argc, char *argv[])
 
     name = argv[0];
 
-    while ((opt = getopt(argc, argv, "vhdaL:")) != EOF) {
+    while ((opt = getopt(argc, argv, "vhdaL:ls:b:")) != EOF) {
         switch (opt) {
         case 'v':
             verbosity++;
@@ -88,6 +102,15 @@ main(int argc, char *argv[])
             break;
         case 'L':
             logname = optarg;
+            break;
+        case 'l':
+            list = 1;
+            break;
+        case 's':
+            source = optarg;
+            break;
+        case 'b':
+            build = optarg;
             break;
         case 'h':
             usage(stdout, name);
@@ -109,36 +132,67 @@ main(int argc, char *argv[])
     }
 
     filename = argv[0];
-    if (verbosity >= 3) {
-        printf("Running %s\n", filename);
-        fflush(stdout);
-    }
-
 
     if (logname != NULL) {
-        if (log_open(logname, append)) {
-            fprintf(stderr, "Failed to open %s: %s\n",
-                    logname, strerror(errno));
-            fflush(stderr);
-            exit(EXIT_FAILURE);
-        }
+        if (log_open(logname, append))
+            die(errno, "Failed to open %s", logname);
+    }
+
+    if (source != NULL) {
+        /* Set SOURCE and TAP_SOURCE */
+        ret = setenv("SOURCE", source, 1);
+        if (ret != 0)
+            die(errno, "setenv(SOURCE)");
+
+        ret = setenv("TAP_SOURCE", source, 1);
+        if (ret != 0)
+            die(errno, "setenv(TAP_SOURCE)");
     }
 
 
     /* The parser has to be initialized before a
      * tap_parser_reset call */
     ret = tap_parser_init(&tp, TP_BUFFER_SZ);
-    if (ret != 0) {
-        fprintf(stderr, "tap_parser_init(): %s\n", strerror(ret));
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
+    if (ret != 0)
+        die(ret, "tap_parser_init()");
 
     /* Handle SIGCHLD */
     signal(SIGCHLD, &handle_sigchld);
 
-    /* run the test */
-    run_single(&tp, filename);
+    /* Cleanup the environment at exit */
+    atexit(unset_envars);
+
+    if (source != NULL) {
+        /* Set SOURCE and TAP_SOURCE */
+        ret = setenv("SOURCE", source, 1);
+        if (ret != 0)
+            die(errno, "setenv(SOURCE)");
+
+        ret = setenv("TAP_SOURCE", source, 1);
+        if (ret != 0)
+            die(errno, "setenv(TAP_SOURCE)");
+    }
+
+    if (build != NULL) {
+        /* Set BUILD and TAP_BUILD */
+        ret = setenv("BUILD", build, 1);
+        if (ret != 0)
+            die(errno, "setenv(BUILD)");
+
+        ret = setenv("TAP_BUILD", build, 1);
+        if (ret != 0)
+            die(errno, "setenv(TAP_BUILD)");
+    }
+
+    if (list)
+        ret = run_list(&tp, filename);
+    else
+        ret = run_single(&tp, filename);
+
+    tap_parser_fini(&tp);
+
+    return ret;
+#if 0
     if (verbosity >= 3) {
         printf("Child pid: %lu\n", (unsigned long)current_child);
         fflush(stdout);
@@ -154,11 +208,10 @@ main(int argc, char *argv[])
         dump_results_array(tr);
         tap_results_fini(tr);
     }
-
-    tap_parser_fini(&tp);
-    return ret;
+#endif
 }
 
+#if 0
 static void
 dump_tap_stats(const tap_parser *tp)
 {
@@ -323,6 +376,7 @@ summarize_results(const tap_parser *tp)
     fflush(stdout);
 }
 
+
 static int
 analyze_results(const tap_parser *tp)
 {
@@ -471,6 +525,7 @@ dump_results_array(const tap_results *tr)
 
 #undef normal_len
 }
+#endif
 
 static pid_t
 exec_test(tap_parser *tp, const char *path)
@@ -480,16 +535,12 @@ exec_test(tap_parser *tp, const char *path)
 
 #define READ_PIPE  0
 #define WRITE_PIPE 1
-    if (pipe(pipes) == -1) {
-        perror("pipe()");
-        exit(EXIT_FAILURE);
-    }
+    if (pipe(pipes) == -1)
+        die(errno, "pipe()");
 
     child = fork();
-    if (child == (pid_t)-1) {
-        perror("fork()");
-        exit(EXIT_FAILURE);
-    }
+    if (child == (pid_t)-1)
+        die(errno, "fork()");
 
     if (child == 0) {
         /* child proc */
@@ -537,6 +588,16 @@ handle_sigchld(int sig)
         child_exited = 1;
 }
 
+/* registered atexit to cleanup the environment */
+static void
+unset_envars(void)
+{
+    unsetenv("SOURCE");
+    unsetenv("TAP_SOURCE");
+    unsetenv("BUILD");
+    unsetenv("TAP_BUILD");
+}
+
 /* Initialize all the parser and set the callbacks. */
 static inline int
 init_parser(tap_parser *tp)
@@ -562,25 +623,160 @@ init_parser(tap_parser *tp)
     return 0;
 }
 
-static void
-run_list(tap_parser *tp, const char *list)
+static inline char*
+find_test(const char *base)
 {
-    (void)tp;
-    (void)run_list;
+    char *ret;
+
+    const char **dptr;
+    const char *dirs[4];
+
+    size_t pos;
+    size_t len;
+    size_t dir_len;
+    size_t base_len;
+
+    struct stat sb;
+
+    dirs[0] = ".";
+    dirs[1] = build;
+    dirs[2] = source;
+    dirs[3] = NULL;
+
+    ret = NULL;
+    dir_len = 0;
+    base_len = strlen(base);
+
+    for (dptr = &dirs[0]; dptr != NULL; ++dptr) {
+        len = strlen(*dptr);
+
+        if (ret != NULL) {
+            if (dir_len < len) {
+                char *n;
+                n = (char *)realloc(ret, len + base_len + 4);
+                if (n == NULL) {
+                    free(ret);
+                    die(errno, "realloc()");
+                }
+
+                ret = n;
+            }
+
+            dir_len = len;
+        }
+        else {
+            ret = (char *)malloc(len + base_len + 4);
+            if (ret == NULL)
+                die(errno, "malloc()");
+        }
+
+        dir_len = len;
+
+        strncpy(ret, *dptr, dir_len);
+        ret[dir_len] = '/';
+        pos = dir_len + 1;
+
+        strncpy(&ret[pos], base, base_len);
+        pos += base_len;
+        ret[pos + 1] = 't';
+        ret[pos + 2] = '\0';
+
+        /* First try -t */
+        ret[pos] = '-';
+        if (stat(ret, &sb) != -1) {
+            if (!S_ISREG(sb.st_mode))
+                die(0, "%s is not a regular file!\n", ret);
+            return ret;
+        }
+
+        /* Next is .t */
+        ret[pos] = '.';
+        if (stat(ret, &sb) != -1) {
+            if (!S_ISREG(sb.st_mode))
+                die(0, "%s is not a regular file!\n");
+            return ret;
+        }
+    }
+
+    free(ret);
+    return NULL;
 }
 
-static void
+static int
+run_list(tap_parser *tp, const char *list)
+{
+    FILE *file;
+
+    size_t line;
+    size_t length;
+
+    char *test;
+    char buffer[TP_BUFFER_SZ];
+
+    ttr_node *node;
+    test_results tsr;
+
+
+    file = fopen(list, "r");
+    if (file == NULL)
+        die(errno, "Cannot open list %s", list);
+
+    /* Initialize the test results */
+    test_results_init(&tsr);
+
+    line = 0;
+    while (fgets(buffer, TP_BUFFER_SZ-1, file)) {
+        ++line;
+        /* Skip comments */
+        if (buffer[0] == '#')
+            continue;
+
+        length = strlen(buffer) - 1;
+        if (buffer[length] != '\n') {
+            die(0, "%s: %lu: line too long\n",
+                list, (unsigned long)line);
+        }
+
+        buffer[length] = '\0';
+
+        test = find_test(buffer);
+        if (test == NULL)
+            die(0, "Failed to find test: %s\n", buffer);
+
+        /* Set up the new node */
+        node = ttr_node_new();
+        node->file = strdup(buffer);
+        if (node->file == NULL)
+            die(errno, "strdup(list)");
+        node->path = test;
+
+        /* Add the node to the results list */
+        test_results_push(&tsr, node);
+
+        /* Run the test */
+        node->status = run_single(tp, test);
+
+        /* Detatch and store off the test results */
+        node->tr = tap_parser_steal_results(tp);
+        node->child_status = child_status;
+
+        cook_test_results(&tsr, node, tp);
+    }
+
+    /* Cleanup test results */
+    test_results_fini(&tsr);
+
+    return 0;
+}
+
+static int
 run_single(tap_parser *tp, const char *test)
 {
     int ret;
 
     ret = init_parser(tp);
-    if (ret != 0) {
-        /* Failing to init the parser is fatal. */
-        fprintf(stderr, "tap_parser_init(): %s\n", strerror(ret));
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
+    if (ret != 0)
+        die(ret, "tap_parser_reset()");
 
     child_exited = 0;
     child_status = 0;
@@ -603,15 +799,40 @@ run_single(tap_parser *tp, const char *test)
         }
     }
 
-#if 0
     if (WIFEXITED(child_status))
-        WEXITSTATUS(child_status)
+        ret = WEXITSTATUS(child_status);
     else if (WIFSIGNALED(child_status))
-        killed by WTERMSIG(child_status)
-#endif
+        ret = -WTERMSIG(child_status);
 
     /* Close the fd */
     close(tp->fd);
+
+    if (ret != 0)
+        return ret;
+
+    return !!tp->failed;
+}
+
+static inline void
+cook_test_results(test_results *tsr, ttr_node *node, tap_parser *tp)
+{
+    tsr->total_tests_run += tp->tests_run;
+    tsr->total_failed += tp->failed;
+    tsr->total_skipped += tp->skipped;
+    tsr->total_todo += tp->todo;
+    tsr->total_parse_errors += tp->parse_errors;
+
+    /* XXX: This function needs to dump test results each pass */
+    if (tp->bailed) /* Bailed out! */
+        node->aborted = 1;
+    else if (tp->plan == -1) /* No plan */
+        node->aborted = 1;
+    else if (tp->tests_run > tp->plan) /* Missing tests */
+        node->aborted = 1;
+    else if (node->status < 0) /* -WTERMSIG */
+        node->aborted = 1;
+
+    tsr->total_aborted += node->aborted;
 }
 
 /* vim: set ts=4 sw=4 sws=4 expandtab: */

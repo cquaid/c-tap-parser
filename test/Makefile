@@ -1,4 +1,4 @@
-SRC = test.c test_log.c
+SRC = test.c test_log.c test_results.c
 OBJ = $(SRC:.c=.o)
 
 LIB ?= TapParser
