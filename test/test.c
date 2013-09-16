@@ -30,6 +30,7 @@ enum analyze_ret {
 
 /* Globals */
 static int debug = 0;
+static int capture_stderr = 0;
 
 /* Non-static, used by test_callbacks */
 int verbosity = 0;
@@ -69,6 +70,7 @@ usage(FILE *file, const char *name)
     fprintf(file, " -l            filename is a list of tests to run\n");
     fprintf(file, " -s src_dir    test source directory\n");
     fprintf(file, " -b build_dir  test build directory\n");
+    fprintf(file, " -e            capture test stderr\n");
     fflush(file);
 }
 
@@ -87,7 +89,7 @@ main(int argc, char *argv[])
 
     name = argv[0];
 
-    while ((opt = getopt(argc, argv, "vhdaL:ls:b:")) != EOF) {
+    while ((opt = getopt(argc, argv, "vhdaL:ls:b:e")) != EOF) {
         switch (opt) {
         case 'v':
             verbosity++;
@@ -111,6 +113,9 @@ main(int argc, char *argv[])
             break;
         case 'b':
             build = optarg;
+            break;
+        case 'e':
+            capture_stderr = 1;
             break;
         case 'h':
             usage(stdout, name);
@@ -544,16 +549,23 @@ exec_test(tap_parser *tp, const char *path)
 
     if (child == 0) {
         /* child proc */
-        int fd = open("/dev/null", O_WRONLY);
-        if (fd == -1)
-            exit(EXIT_FAILURE);
-        if (dup2(fd, STDERR_FILENO) == -1)
-            exit(EXIT_FAILURE);
+
+        if (capture_stderr) {
+            if (dup2(pipes[WRITE_PIPE], STDERR_FILENO) == -1)
+                exit(EXIT_FAILURE);
+        }
+        else {
+            int fd = open("/dev/null", O_WRONLY);
+            if (fd == -1)
+                exit(EXIT_FAILURE);
+            if (dup2(fd, STDERR_FILENO) == -1)
+                exit(EXIT_FAILURE);
+            close(fd);
+        }
 
         if (dup2(pipes[WRITE_PIPE], STDOUT_FILENO) == -1)
             exit(EXIT_FAILURE);
 
-        close(fd);
         close(pipes[READ_PIPE]);
         close(pipes[WRITE_PIPE]);
 
