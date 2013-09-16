@@ -64,11 +64,6 @@ tap_parser_reset(tap_parser *tp)
     tap_results *results;
 
     if (tp->buffer == NULL) {
-        /* This case doesn't usually happen
-         * But if the results aren't stolen free them */
-        if (tp->tr != NULL)
-            tap_results_fini(tp->tr);
-
         /* No buffer? re-init */
         tap_parser_fini(tp);
         return tap_parser_init(tp, DEFAULT_BUFFER_LEN);
@@ -78,6 +73,12 @@ tap_parser_reset(tap_parser *tp)
      * have to realloc it. */
     buffer = tp->buffer;
     buffer_len = tp->buffer_len;
+
+    if (tp->skip_all_reason != NULL)
+        free(tp->skip_all_reason);
+
+    if (tp->bailed_reason != NULL)
+        free(tp->bailed_reason);
 
     /* If it's not stolen wipe it out */
     if (tp->tr) {
@@ -117,6 +118,12 @@ tap_parser_reset(tap_parser *tp)
 void
 tap_parser_fini(tap_parser *tp)
 {
+    if (tp->skip_all_reason)
+        free(tp->skip_all_reason);
+
+    if (tp->bailed_reason)
+        free(tp->bailed_reason);
+
     if (tp->buffer)
         free(tp->buffer);
 

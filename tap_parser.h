@@ -159,6 +159,8 @@ struct _tap_parser {
 
     /* TAP Specific Members */
     int bailed; /* Have we bailed out? */
+    char *bail_reason; /* Why we bailed. */
+
     long version;
     long plan;
     long test_num;

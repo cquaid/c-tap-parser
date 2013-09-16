@@ -765,6 +765,9 @@ run_list(tap_parser *tp, const char *list)
         /* Add the node to the results list */
         test_results_push(&tsr, node);
 
+        if (verbosity >= 1)
+            printf("%s...", node->file);
+
         /* Run the test */
         node->status = run_single(tp, test);
 
@@ -828,6 +831,8 @@ run_single(tap_parser *tp, const char *test)
 static inline void
 cook_test_results(test_results *tsr, ttr_node *node, tap_parser *tp)
 {
+    int reported = 0;
+
     tsr->total_tests_run += tp->tests_run;
     tsr->total_failed += tp->failed;
     tsr->total_skipped += tp->skipped;
@@ -835,16 +840,55 @@ cook_test_results(test_results *tsr, ttr_node *node, tap_parser *tp)
     tsr->total_parse_errors += tp->parse_errors;
 
     /* XXX: This function needs to dump test results each pass */
-    if (tp->bailed) /* Bailed out! */
+    if (tp->bailed) {
+        if (verbosity >= 1) {
+            if (tp->bailed_reason == NULL)
+                printf("bailed\n");
+            else
+                printf("bailed (%s)\n", tp->bailed_reason);
+            reported = 1;
+        }
         node->aborted = 1;
-    else if (tp->plan == -1) /* No plan */
+    }
+    else if (tp->plan == -1) {
+        if (verbosity >= 1) {
+            printf("aborted (No Plan)\n");
+            reported = 1;
+        }
         node->aborted = 1;
-    else if (tp->tests_run > tp->plan) /* Missing tests */
+    }
+    else if (tp->tests_run > tp->plan) {
+        if (verbosity >= 1) {
+            printf("aborted (Extra Tests)\n");
+            reported = 1;
+        }
         node->aborted = 1;
-    else if (node->status < 0) /* -WTERMSIG */
+    }
+    else if (node->status < 0) {
+        if (verbosity >= 1) {
+            printf("aborted (Killed by signal %d)\n", node->status);
+            reported = 1;
+        }
         node->aborted = 1;
+    }
 
     tsr->total_aborted += node->aborted;
+
+    if (verbosity >= 1 && !reported) {
+        if (tp->skip_all) {
+            if (tp->skip_all_reason == NULL)
+                printf("skipped\n");
+            else
+                printf("skipped (%s)\n", tp->skip_all_reason);
+            return;
+        }
+
+        if (tp->failed)
+            printf("not ok\n");
+        else
+            printf("ok\n");
+    }
+
 }
 
 /* vim: set ts=4 sw=4 sws=4 expandtab: */

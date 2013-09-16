@@ -91,6 +91,10 @@ tap_default_bailout_callback(tap_parser *tp, char *msg)
     if (msg == NULL)
         return 1;
 
+    tp->bailed_reason = strdup(msg);
+    if (tp->bailed_reason == NULL)
+        invalid(tp, errno, "strdup failed: %s", strerror(errno));
+
     return 1;
 }
 
@@ -513,7 +517,7 @@ tap_eval(tap_parser *tp)
     if (bail != NULL) {
         bail += sizeof("Bail out!") - 1;
         bail = strip(bail);
-        if (*bail != '\0')
+        if (*bail != '\0') {
             ret_call1(tp, bailout_callback, chomp(bail));
         else
             ret_call1(tp, bailout_callback, NULL);
