@@ -3,7 +3,7 @@
 echo 1..4
 echo ok
 echo ok
-echo oh noooooo Bail out! Comeone stole a cookie from the cookie jar!
+echo oh noooooo Bail out! Someone stole a cookie from the cookie jar!
 echo ok
 echo ok
 
