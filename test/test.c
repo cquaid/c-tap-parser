@@ -126,7 +126,7 @@ main(int argc, char *argv[])
     argc -= optind;
 
     if (argc != 1) {
-        fprintf(stderr, "Missing filename!");
+        fprintf(stderr, "Missing filename!\n");
         usage(stderr, name);
         exit(EXIT_FAILURE);
     }
