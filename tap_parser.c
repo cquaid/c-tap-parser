@@ -21,7 +21,7 @@ tap_parser_init(tap_parser *tp, size_t buffer_len)
 
     /* Need to allocate a new tap_results struct
      * to store everything in. */
-    tp->tr= (tap_results *)malloc(sizeof(tap_results));
+    tp->tr = (tap_results *)malloc(sizeof(tap_results));
     if (tp->tr == NULL)
         return errno;
 
@@ -85,6 +85,14 @@ tap_parser_reset(tap_parser *tp)
             free(tp->tr->results);
         memset(tp->tr, 0, sizeof(tap_results));
         results = tp->tr;
+    }
+    else {
+        /* Otherwise create a new one */
+        results = (tap_results *)malloc(sizeof(tap_results));
+        if (results == NULL)
+            return errno;
+
+        memset(results, 0, sizeof(tap_results));
     }
 
     memset(tp, 0, sizeof(*tp));
