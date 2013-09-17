@@ -55,6 +55,7 @@ static inline int init_parser(tap_parser *tp);
 static inline char* find_test(const char *base);
 static int run_list(tap_parser *tp, const char *list);
 static int run_single(tap_parser *tp, const char *test);
+static inline void print_test_results(ttr_node *node, enum tap_test_type ttt);
 static inline void cook_test_results(test_results *tsr, ttr_node *node, tap_parser *tp);
 
 static void
@@ -792,12 +793,10 @@ run_list(tap_parser *tp, const char *list)
     /* Run the tests */
     node = tsr.root;
     while (node != NULL) {
-        if (verbosity >= 1) {
-            printf("%s...", node->file);
-            length = longest - strlen(node->file);
-            while (length--)
-                putchar('.');
-        }
+        printf("%s...", node->file);
+        length = longest - strlen(node->file);
+        while (length--)
+            putchar('.');
 
         /* Run the test */
         node->status = run_single(tp, node->path);
@@ -878,54 +877,98 @@ cook_test_results(test_results *tsr, ttr_node *node, tap_parser *tp)
 
     /* XXX: This function needs to dump test results each pass */
     if (tp->bailed) {
-        if (verbosity >= 1) {
-            if (tp->bailed_reason == NULL)
-                printf("bailed\n");
-            else
-                printf("bailed (%s)\n", tp->bailed_reason);
-            reported = 1;
+        if (tp->bailed_reason == NULL) {
+            printf("ABORTED");
+            if (tp->plan != -1)
+                printf(" (passed %ld/%ld)", tp->passed, tp->plan);
+            putchar('\n');
         }
+        else
+            printf("ABORTED (%s)\n", tp->bailed_reason);
+        reported = 1;
         node->aborted = 1;
     }
     else if (tp->plan == -1) {
-        if (verbosity >= 1) {
-            printf("aborted (No Plan)\n");
-            reported = 1;
-        }
+        printf("ABORTED (No Plan)\n");
+        reported = 1;
         node->aborted = 1;
     }
     else if (tp->tests_run > tp->plan) {
-        if (verbosity >= 1) {
-            printf("aborted (Extra Tests)\n");
-            reported = 1;
-        }
+        printf("ABORTED (Extra Tests)\n");
+        reported = 1;
         node->aborted = 1;
     }
     else if (node->status < 0) {
-        if (verbosity >= 1) {
-            printf("aborted (Killed by signal %d)\n", node->status);
-            reported = 1;
-        }
+        printf("ABORTED (Killed by signal %d)\n", node->status);
+        reported = 1;
         node->aborted = 1;
     }
 
     tsr->total_aborted += node->aborted;
 
-    if (verbosity >= 1 && !reported) {
-        if (tp->skip_all) {
-            if (tp->skip_all_reason == NULL)
-                printf("skipped\n");
-            else
-                printf("skipped (%s)\n", tp->skip_all_reason);
-            return;
-        }
-
-        if (tp->failed)
-            printf("not ok\n");
-        else
-            printf("ok\n");
+    if (reported) {
+        fflush(stdout);
+        return;
     }
 
+    if (tp->skip_all) {
+        if (tp->skip_all_reason == NULL)
+            printf("skipped\n");
+        else
+            printf("skipped (%s)\n", tp->skip_all_reason);
+            fflush(stdout);
+        return;
+    }
+
+    if (tp->tests_run < tp->plan) {
+        printf("MISSED ");
+        print_test_results(node, TTT_INVALID);
+        if (tp->failed)
+            printf("; ");
+        else {
+            putchar('\n');
+            return;
+        }
+    }
+
+    if (tp->failed) {
+        printf("FAILED ");
+        print_test_results(node, TTT_NOT_OK);
+        putchar('\n');
+        return;
+    }
+
+    printf("ok");
+    if (tp->skipped)
+        printf(" (skipped %ld tests)", tp->skipped);
+    putchar('\n');
+
+    fflush(stdout);
+}
+
+static inline void
+print_test_results(ttr_node *node, enum tap_test_type ttt)
+{
+    size_t i, first;
+
+    if (node->tr == NULL || node->tr->results_len == 0) {
+        printf("???");
+        return;
+    }
+
+    first = 1;
+    for (i = 1; i < node->tr->results_len; ++i) {
+        /* Skip anything we don't care about */
+        if (node->tr->results[i] != ttt)
+            continue;
+
+        if (!first)
+            printf(", ");
+        else
+            first = 0;
+
+        printf("%ld", (unsigned long)i);
+    }
 }
 
 /* vim: set ts=4 sw=4 sws=4 expandtab: */
