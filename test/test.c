@@ -839,11 +839,14 @@ run_single(tap_parser *tp, const char *test)
         ;
 
     if (!child_exited) {
-        /* Give teh child some time, then kill it! */
+        /* Give the child some time, then kill it! */
         usleep(10);
         if (!child_exited) {
-            fprintf(stderr, "Killing child (%lu)\n",
-                    (unsigned long)current_child);
+            if (verbosity >= 2) {
+                fprintf(stderr, "Killing child (%lu)\n",
+                        (unsigned long)current_child);
+                fflush(stderr);
+            }
             kill(current_child, SIGKILL);
         }
     }
