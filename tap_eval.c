@@ -107,7 +107,7 @@ tap_default_pragma_callback(tap_parser *tp, int state, char *pragma)
     }
 
     /* always report invalid pragmas */
-    return invalid(tp, TE_PRAGMA_UNKNOWN, "Invalid pragma: %s", pragma);
+    return invalid(tp, TE_PRAGMA_UNKNOWN, "Unknown pragma: %s", pragma);
 }
 
 int
@@ -279,7 +279,6 @@ parse_pragma(tap_parser *tp)
             tap_default_pragma_callback(tp, state, buf);
         else
             tp->pragma_callback(tp, state, buf);
-
 
         /* more than one in list, skip past , */
         buf = strip(c + 1);
