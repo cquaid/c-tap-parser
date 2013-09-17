@@ -102,9 +102,44 @@ bailout_cb(tap_parser *tp, char *msg)
 static int
 pragma_cb(tap_parser *tp, int state, char *pragma)
 {
+    static int test_pragma;
+
     if (verbosity >= 3) {
         printf("Pragma: %c%s\n", (state) ? '+' : '-', pragma);
         fflush(stdout);
+    }
+
+    /* test pragma */
+    if (!strcmp(pragma, "test")) {
+        test_pragma = state;
+        return 0;
+    }
+
+    if (!strcmp(pragma, "print_test")) {
+        if (!state)
+            return 0;
+
+        printf("test_pragma: %d\n", test_pragma);
+        fflush(stdout);
+        return 0;
+    }
+
+    if (!strcmp(pragma, "print_strict")) {
+        if (!state)
+            return 0;
+
+        printf("strict: %d\n", tp->strict);
+        fflush(stdout);
+        return 0;
+    }
+
+    if (!strcmp(pragma, "print_parse_errors")) {
+        if (!state)
+            return 0;
+
+        printf("parse_errors: %ld\n", tp->parse_errors);
+        fflush(stdout);
+        return 0;
     }
 
     return tap_default_pragma_callback(tp, state, pragma);
