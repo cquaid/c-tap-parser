@@ -34,6 +34,7 @@ static int capture_stderr = 0;
 
 /* Non-static, used by test_callbacks */
 int verbosity = 0;
+int running_list = 0;
 
 static int child_exited = 0;
 static int child_status = 0;
@@ -780,6 +781,8 @@ run_list(tap_parser *tp, const char *list)
     /* Grap the test list */
     make_test_list(&tsr, list);
 
+    running_list = 1;
+
     /* Find the longest test name */
     longest = 0;
     node = tsr.root;
@@ -793,10 +796,14 @@ run_list(tap_parser *tp, const char *list)
     /* Run the tests */
     node = tsr.root;
     while (node != NULL) {
-        printf("%s...", node->file);
+        printf("%s ...", node->file);
         length = longest - strlen(node->file);
         while (length--)
             putchar('.');
+        /* We print two lines if verbose
+         * This is to constrain the test output */
+        if (verbosity)
+            putchar('\n');
 
         /* Run the test */
         node->status = run_single(tp, node->path);
@@ -804,6 +811,15 @@ run_list(tap_parser *tp, const char *list)
         /* Detatch and store off the test results */
         node->tr = tap_parser_steal_results(tp);
         node->child_status = child_status;
+
+        /* If verbose we print two lines to
+         * constrain test output */
+        if (verbosity) {
+            printf("%s ...", node->file);
+            length = longest - strlen(node->file);
+            while (length--)
+                putchar('.');
+        }
 
         cook_test_results(&tsr, node, tp);
         fflush(stdout);
