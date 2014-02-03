@@ -145,20 +145,6 @@ main(int argc, char *argv[])
             die(errno, "Failed to open %s", logname);
     }
 
-#if 0
-    if (source != NULL) {
-        /* Set SOURCE and TAP_SOURCE */
-        ret = setenv("SOURCE", source, 1);
-        if (ret != 0)
-            die(errno, "setenv(SOURCE)");
-
-        ret = setenv("TAP_SOURCE", source, 1);
-        if (ret != 0)
-            die(errno, "setenv(TAP_SOURCE)");
-    }
-#endif
-
-
     /* The parser has to be initialized before a
      * tap_parser_reset call */
     ret = tap_parser_init(&tp, TP_BUFFER_SZ);
@@ -171,7 +157,7 @@ main(int argc, char *argv[])
     /* Cleanup the environment at exit */
     atexit(unset_envars);
 
-    if (source != NULL) {
+    if (source != NULL && *source != '\0') {
         /* Set SOURCE and TAP_SOURCE */
         ret = setenv("SOURCE", source, 1);
         if (ret != 0)
@@ -182,7 +168,7 @@ main(int argc, char *argv[])
             die(errno, "setenv(TAP_SOURCE)");
     }
 
-    if (build != NULL) {
+    if (build != NULL && *build != '\0') {
         /* Set BUILD and TAP_BUILD */
         ret = setenv("BUILD", build, 1);
         if (ret != 0)
