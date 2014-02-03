@@ -40,8 +40,8 @@ static int child_exited = 0;
 static int child_status = 0;
 static pid_t current_child = -1;
 
-static const char *build = NULL;
-static const char *source = NULL;
+static const char *build = "";
+static const char *source = "";
 
 /* Helpers */
 #if 0
@@ -145,6 +145,7 @@ main(int argc, char *argv[])
             die(errno, "Failed to open %s", logname);
     }
 
+#if 0
     if (source != NULL) {
         /* Set SOURCE and TAP_SOURCE */
         ret = setenv("SOURCE", source, 1);
@@ -155,6 +156,7 @@ main(int argc, char *argv[])
         if (ret != 0)
             die(errno, "setenv(TAP_SOURCE)");
     }
+#endif
 
 
     /* The parser has to be initialized before a
@@ -661,7 +663,10 @@ find_test(const char *base)
     dir_len = 0;
     base_len = strlen(base);
 
-    for (dptr = &dirs[0]; dptr != NULL; ++dptr) {
+    for (dptr = &dirs[0]; *dptr != NULL; ++dptr) {
+        if (*dptr == '\0')
+            continue;
+
         len = strlen(*dptr);
 
         if (ret != NULL) {
